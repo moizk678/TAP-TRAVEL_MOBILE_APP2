@@ -1,91 +1,166 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform } from "react-native";
 import { format12time, formatDate } from "../../utils/helperFunction";
 import { getTimeDifference } from "../../utils/get-time-difference";
-import AppButton from "../../Components/Button";
-import { useNavigation } from "@react-navigation/native";
+import { MaterialIcons } from "react-native-vector-icons";
+import * as Animatable from "react-native-animatable";
+import { useTheme } from "../../theme/theme";
 
-const BusCard = ({ bus, index }) => {
-  const navigation = useNavigation();
+const BusCard = ({ bus, index, onBook }) => {
+  const { theme } = useTheme();
+  const [scale] = useState(new Animated.Value(1));
 
-  const handleBookTicket = (busId) => {
-    navigation.navigate("BookTicket", { busId });
+  const handleBookTicket = () => {
+    if (onBook) {
+      onBook(bus._id);
+    }
+  };
+
+  const handlePressIn = () => {
+    Animated.spring(scale, {
+      toValue: 0.96,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scale, {
+      toValue: 1,
+      friction: 3,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
   };
 
   return (
-    <View style={styles.card}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.companyContainer}>
-          <Text style={styles.companyLabel}>Bus Operator</Text>
-          <Text style={styles.company}>{bus?.adminName}</Text>
-        </View>
-        <View style={styles.priceContainer}>
-          <Text style={styles.priceLabel}>Ticket Price</Text>
-          <Text style={styles.price}>PKR {bus?.fare?.actualPrice}</Text>
-        </View>
-      </View>
-
-      {/* Divider */}
-      <View style={styles.divider} />
-
-      {/* Route and Timing Info */}
-      <View style={styles.routeRow}>
-        {/* Departure */}
-        <View style={styles.timeBlock}>
-          <Text style={styles.label}>DEPARTURE</Text>
-          <Text style={styles.time}>{format12time(bus?.departureTime)}</Text>
-          <Text style={styles.city}>{bus?.route?.startCity}</Text>
-          <Text style={styles.date}>{formatDate(bus?.date)}</Text>
+    <Animatable.View animation="fadeIn" duration={600} delay={index * 100}>
+      <View style={[styles.card, { 
+        backgroundColor: "#F6F7FF",
+        shadowColor: theme.colors.primary,
+        borderColor: theme.colors.tertiary
+      }]}>
+        {/* Bus Operator Badge */}
+        <View style={[styles.badgeContainer, { backgroundColor: theme.colors.basic }]}>
+          <MaterialIcons name="directions-bus" size={16} color={theme.colors.primary} />
+          <Text 
+            style={[styles.badgeText, { color: theme.colors.primary }]} 
+            numberOfLines={1} 
+            ellipsizeMode="tail"
+          >
+            {bus?.adminName}
+          </Text>
         </View>
 
-        {/* Duration */}
-        <View style={styles.durationContainer}>
-          <View style={styles.durationLine} />
-          <View style={styles.durationBlock}>
-            <Text style={styles.durationText}>
-              {getTimeDifference(bus?.departureTime, bus?.arrivalTime)}
+        {/* Route Information */}
+        <View style={styles.routeContainer}>
+          {/* Departure */}
+          <View style={styles.timeBlock}>
+            <Text style={styles.timeText}>{format12time(bus?.departureTime)}</Text>
+            <Text 
+              style={styles.cityText} 
+              numberOfLines={2} 
+              ellipsizeMode="tail"
+            >
+              {bus?.route?.startCity}
+            </Text>
+            <Text style={styles.dateText}>{formatDate(bus?.date)}</Text>
+          </View>
+
+          {/* Journey Visual */}
+          <View style={styles.journeyVisual}>
+            <View style={[styles.startDot, { backgroundColor: theme.colors.primary }]} />
+            <View style={[styles.journeyLine, { backgroundColor: theme.colors.tertiary }]} />
+            <View style={[styles.durationBadge, { backgroundColor: theme.colors.basic }]}>
+              <Text style={[styles.durationText, { color: theme.colors.primary }]}>
+                {getTimeDifference(bus?.departureTime, bus?.arrivalTime)}
+              </Text>
+            </View>
+            <View style={[styles.journeyLine, { backgroundColor: theme.colors.tertiary }]} />
+            <View style={[styles.endDot, { backgroundColor: theme.colors.primary }]} />
+          </View>
+
+          {/* Arrival */}
+          <View style={styles.timeBlock}>
+            <Text style={styles.timeText}>{format12time(bus?.arrivalTime)}</Text>
+            <Text 
+              style={styles.cityText} 
+              numberOfLines={2} 
+              ellipsizeMode="tail"
+            >
+              {bus?.route?.endCity}
+            </Text>
+            <Text style={styles.dateText}>{formatDate(bus?.date)}</Text>
+          </View>
+        </View>
+
+        {/* Divider */}
+        <View style={[styles.divider, { backgroundColor: theme.colors.tertiary }]} />
+
+        {/* Bus Details */}
+        <View style={styles.detailsContainer}>
+          <View style={styles.detailItem}>
+            <MaterialIcons name="attach-money" size={14} color={theme.colors.primary} />
+            <Text style={styles.detailText} numberOfLines={1}>
+              <Text style={styles.detailLabel}>Price: </Text>
+              <Text style={styles.detailValue}>PKR {bus?.fare?.actualPrice}</Text>
             </Text>
           </View>
-          <View style={styles.durationLine} />
+
+          <View style={styles.detailItem}>
+            <MaterialIcons name="airline-seat-recline-normal" size={14} color={theme.colors.primary} />
+            <Text style={styles.detailText} numberOfLines={1}>
+              <Text style={styles.detailLabel}>Seats: </Text>
+              <Text style={styles.detailValue}>{bus?.busDetails?.busCapacity || "N/A"}</Text>
+            </Text>
+          </View>
+
+          <View style={styles.detailItem}>
+            <MaterialIcons name="place" size={14} color={theme.colors.primary} />
+            <Text style={styles.detailText} numberOfLines={1}>
+              <Text style={styles.detailLabel}>Stops: </Text>
+              <Text style={styles.detailValue}>{bus?.route?.stops?.length || 0}</Text>
+            </Text>
+          </View>
         </View>
 
-        {/* Arrival */}
-        <View style={styles.timeBlock}>
-          <Text style={styles.label}>ARRIVAL</Text>
-          <Text style={styles.time}>{format12time(bus?.arrivalTime)}</Text>
-          <Text style={styles.city}>{bus?.route?.endCity}</Text>
-          <Text style={styles.date}>{formatDate(bus?.date)}</Text>
-        </View>
-      </View>
-
-      {/* Divider */}
-      <View style={styles.divider} />
-
-      {/* Info Chips */}
-      <View style={styles.infoRow}>
-        <View style={styles.infoChip}>
-          <Text style={styles.infoText}>🛑 Stops: {bus?.route?.stops?.length || 0}</Text>
-        </View>
-        <View style={styles.infoChip}>
-          <Text style={styles.infoText}>👥 Total Seats: {bus?.busDetails?.busCapacity || "N/A"}</Text>
-        </View>
-        <View style={styles.infoChip}>
-          <Text style={styles.infoText}>
+        {/* Bus Type Badge */}
+        <View style={[styles.busTypeBadge, { backgroundColor: theme.colors.basic }]}>
+          <MaterialIcons name="stars" size={14} color={theme.colors.primary} />
+          <Text style={[styles.busTypeText, { color: theme.colors.primary }]} numberOfLines={1}>
             {bus?.busDetails?.standard?.toUpperCase() || "STANDARD"}
           </Text>
         </View>
-      </View>
 
-      {/* Book Button */}
-      <View style={styles.buttonContainer}>
-        <AppButton
-          text="Book My Ticket"
-          variant="green"
-          onPress={() => handleBookTicket(bus._id)}
-        />
+        {/* Book Button - Using AppButton styling approach */}
+        <Animated.View style={{ transform: [{ scale }] }}>
+          <TouchableOpacity
+            style={[styles.bookButton, { 
+              backgroundColor: theme.colors.primary,
+              height: 48,
+              borderRadius: 30,
+              ...Platform.select({
+                android: {
+                  elevation: 4,
+                },
+                ios: {
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 6,
+                },
+              }),
+            }]}
+            onPress={handleBookTicket}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            activeOpacity={0.9}
+          >
+            <MaterialIcons name="confirmation-number" size={18} color="#FFFFFF" />
+            <Text style={styles.bookButtonText}>Book Ticket</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
-    </View>
+    </Animatable.View>
   );
 };
 
@@ -93,135 +168,153 @@ export default BusCard;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#292966",
     borderRadius: 16,
-    padding: 20,
-    marginVertical: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 8,
+    padding: 16,
+    marginVertical: 10,
+    marginHorizontal: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
   },
-  header: {
+  badgeContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingBottom: 12,
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginBottom: 12,
+    maxWidth: "80%",
   },
-  companyContainer: {
+  badgeText: {
+    fontWeight: "600",
+    fontSize: 13,
+    marginLeft: 4,
+    flexShrink: 1,
+  },
+  routeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  timeBlock: {
+    flex: 3.5,
+    paddingRight: 4,
+  },
+  timeText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1E293B",
+    marginBottom: 2,
+  },
+  cityText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#334155",
+    marginBottom: 2,
+    flexShrink: 1,
+    width: "100%",
+  },
+  dateText: {
+    fontSize: 12,
+    color: "#64748B",
+  },
+  journeyVisual: {
+    flex: 3,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 2,
+  },
+  startDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    flexShrink: 0,
+  },
+  journeyLine: {
     flex: 1,
+    height: 1,
   },
-  companyLabel: {
-    fontSize: 12,
-    color: "#bbbbbb",
-    marginBottom: 4,
+  durationBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginHorizontal: 2,
+    flexShrink: 0,
   },
-  company: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#ffffff",
+  durationText: {
+    fontSize: 10,
+    fontWeight: "600",
   },
-  priceContainer: {
-    alignItems: "flex-end",
-  },
-  priceLabel: {
-    fontSize: 12,
-    color: "#bbbbbb",
-    marginBottom: 4,
-  },
-  price: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#41E0A8",
+  endDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    flexShrink: 0,
   },
   divider: {
     height: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
     marginVertical: 12,
   },
-  routeRow: {
+  detailsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
+    marginBottom: 12,
+    flexWrap: "wrap",
+  },
+  detailItem: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-  },
-  timeBlock: {
-    flex: 3,
-    paddingHorizontal: 4,
-  },
-  label: {
-    fontSize: 12,
-    color: "#bbbbbb",
-    marginBottom: 6,
-    letterSpacing: 0.5,
-  },
-  time: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#ffffff",
-    marginBottom: 6,
-  },
-  city: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#ffffff",
+    minWidth: "30%",
+    marginRight: 8,
     marginBottom: 4,
   },
-  date: {
+  detailText: {
+    marginLeft: 4,
     fontSize: 12,
-    color: "#cccccc",
+    color: "#334155",
+    flexShrink: 1,
   },
-  durationContainer: {
-    flex: 2,
+  detailLabel: {
+    fontWeight: "400",
+    color: "#64748B",
+  },
+  detailValue: {
+    fontWeight: "600",
+    color: "#334155",
+  },
+  busTypeBadge: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    alignSelf: "flex-end",
     paddingHorizontal: 8,
-  },
-  durationLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.4)",
-  },
-  durationBlock: {
-    paddingHorizontal: 6,
-    alignItems: "center",
-  },
-  durationText: {
-    backgroundColor: "#ffffff",
-    color: "#292966",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 4,
     borderRadius: 12,
-    fontSize: 14,
-    fontWeight: "bold",
-    textAlign: "center",
+    marginBottom: 12,
+    maxWidth: "50%",
   },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  infoChip: {
-    backgroundColor: "#ffffff",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    flex: 1,
-    marginHorizontal: 4,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  infoText: {
+  busTypeText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#292966",
-    textAlign: "center",
+    marginLeft: 4,
+    flexShrink: 1,
   },
-  buttonContainer: {
-    marginTop: 12,
+  bookButton: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+  },
+  bookButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+    letterSpacing: 0.6,
   },
 });

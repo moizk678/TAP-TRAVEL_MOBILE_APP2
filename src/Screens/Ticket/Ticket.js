@@ -7,14 +7,24 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Modal,
+  Platform,
+  StatusBar,
+  Dimensions,
+  SafeAreaView,
+  Image,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { jwtDecode } from "jwt-decode";
 import apiClient from "../../api/apiClient";
 import TicketCard from "./TicketCard";
 import * as Animatable from "react-native-animatable";
+import { useTheme } from "../../theme/theme";
+import { MaterialIcons } from "react-native-vector-icons";
+
+const { width } = Dimensions.get("window");
 
 const Ticket = () => {
+  const { theme } = useTheme();
   const [tickets, setTickets] = useState(null);
   const [filteredTickets, setFilteredTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,7 +35,6 @@ const Ticket = () => {
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [ticketToDelete, setTicketToDelete] = useState(null);
-  // Store ticket details for more informative confirmation dialog
   const [ticketToDeleteDetails, setTicketToDeleteDetails] = useState(null);
 
   const fetchTickets = async () => {
@@ -84,14 +93,12 @@ const Ticket = () => {
     setFilteredTickets(filtered);
   };
 
-  // This is the function we pass to TicketCard - MODIFIED to directly show our custom modal
   const initiateDeleteProcess = (ticket) => {
     if (!ticket || !ticket._id) {
       console.warn("Invalid ticket provided for deletion");
       return;
     }
     
-    // Store both the ID and some details for display
     setTicketToDelete(ticket._id);
     setTicketToDeleteDetails(ticket);
     setConfirmModalVisible(true);
@@ -146,23 +153,42 @@ const Ticket = () => {
           duration={300} 
           style={styles.confirmModalContainer}
         >
+          <View style={styles.modalHeader}>
+            <Text style={[styles.confirmModalTitle, { color: "#FFFFFF" }]}>
+              Cancel Booking
+            </Text>
+          </View>
+          
           <View style={styles.confirmModalContent}>
-            <Text style={styles.confirmModalTitle}>Cancel Booking</Text>
+            <View style={styles.warningIconContainer}>
+              <MaterialIcons name="warning" size={32} color="#FFFFFF" />
+            </View>
             
             <Text style={styles.confirmModalText}>
               Are you sure you want to cancel this booking? This action cannot be undone.
             </Text>
             
-            {ticketToDeleteDetails && ticketToDeleteDetails.eventName && (
-              <View style={styles.ticketInfoContainer}>
-                <Text style={styles.ticketInfoText}>
-                  Event: {ticketToDeleteDetails.eventName}
-                </Text>
-                {ticketToDeleteDetails.date && (
-                  <Text style={styles.ticketInfoText}>
-                    Date: {new Date(ticketToDeleteDetails.date).toLocaleDateString()}
-                  </Text>
-                )}
+            {ticketToDeleteDetails && (
+              <View style={[
+                styles.ticketInfoContainer, 
+                { 
+                  backgroundColor: `${theme.colors.tertiary}20`, 
+                  borderLeftColor: theme.colors.primary
+                }
+              ]}>
+                <MaterialIcons name="event" size={18} color={theme.colors.primary} style={styles.ticketInfoIcon} />
+                <View style={styles.ticketInfoTextContainer}>
+                  {ticketToDeleteDetails.eventName && (
+                    <Text style={styles.ticketInfoTitle}>
+                      {ticketToDeleteDetails.eventName}
+                    </Text>
+                  )}
+                  {ticketToDeleteDetails.date && (
+                    <Text style={styles.ticketInfoDate}>
+                      {new Date(ticketToDeleteDetails.date).toLocaleDateString()}
+                    </Text>
+                  )}
+                </View>
               </View>
             )}
             
@@ -171,11 +197,11 @@ const Ticket = () => {
                 style={styles.cancelButton}
                 onPress={() => setConfirmModalVisible(false)}
               >
-                <Text style={styles.cancelButtonText}>No, Keep It</Text>
+                <Text style={styles.cancelButtonText}>Keep Booking</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
-                style={styles.confirmButton}
+                style={[styles.confirmButton, { backgroundColor: theme.colors.danger || "#E74C3C" }]}
                 onPress={handleDeleteTicket}
               >
                 <Text style={styles.confirmButtonText}>Yes, Cancel</Text>
@@ -201,176 +227,322 @@ const Ticket = () => {
           duration={300} 
           style={styles.successModalContainer}
         >
-          <View style={styles.successModalContent}>
-            <Text style={styles.successModalIcon}>✓</Text>
-            <Text style={styles.successModalTitle}>Booking Cancelled</Text>
-            
-            <Text style={styles.successModalText}>
-              Your booking has been successfully cancelled.
-            </Text>
-            
-            <TouchableOpacity 
-              style={styles.dismissButton}
-              onPress={() => setSuccessModalVisible(false)}
-            >
-              <Text style={styles.dismissButtonText}>Close</Text>
-            </TouchableOpacity>
+          <View style={styles.successIconContainer}>
+            <MaterialIcons name="check-circle" size={60} color={theme.colors.green} />
           </View>
+          
+          <Text style={[styles.successModalTitle, { color: theme.colors.primary }]}>
+            Booking Cancelled
+          </Text>
+          
+          <Text style={styles.successModalText}>
+            Your booking has been successfully cancelled.
+          </Text>
+          
+          <TouchableOpacity 
+            style={[styles.dismissButton, { backgroundColor: theme.colors.primary }]}
+            onPress={() => setSuccessModalVisible(false)}
+          >
+            <Text style={styles.dismissButtonText}>Close</Text>
+          </TouchableOpacity>
         </Animatable.View>
       </View>
     </Modal>
   );
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.header}>🎫 My Tickets</Text>
+  // Convert tab text to icon
+  const getTabIcon = (tab) => {
+    switch(tab) {
+      case 'active':
+        return 'confirmation-number';
+      case 'past':
+        return 'history';
+      case 'cancelled':
+        return 'cancel';
+      default:
+        return 'confirmation-number';
+    }
+  };
 
-      {/* Tabs */}
-      <View style={styles.tabsContainer}>
+  // Get count badges for tabs
+  const getTicketCount = (tab) => {
+    if (!tickets) return 0;
+    
+    switch(tab) {
+      case 'active':
+        return (tickets.active || []).filter(t => t.ticketStatus !== "cancelled").length;
+      case 'past':
+        return (tickets.past || []).filter(t => t.ticketStatus !== "cancelled").length;
+      case 'cancelled':
+        const activeCancelled = (tickets.active || []).filter(t => t.ticketStatus === "cancelled").length;
+        const pastCancelled = (tickets.past || []).filter(t => t.ticketStatus === "cancelled").length;
+        return activeCancelled + pastCancelled;
+      default:
+        return 0;
+    }
+  };
+
+  const renderEmptyState = () => (
+    <Animatable.View 
+      animation="fadeIn" 
+      duration={800} 
+      style={styles.emptyStateContainer}
+    >
+      <View style={styles.emptyStateIconContainer}>
+        <MaterialIcons 
+          name={selectedTab === "active" ? "confirmation-number" : 
+                selectedTab === "past" ? "history" : "block"} 
+          size={70} 
+          color={`${theme.colors.tertiary}80`}
+        />
+      </View>
+      
+      <Text style={[styles.emptyStateTitle, { color: theme.colors.primary }]}>
+        No {selectedTab} tickets
+      </Text>
+      
+      <Text style={styles.emptyStateText}>
+        {selectedTab === "active" 
+          ? "You don't have any active bookings at the moment." 
+          : selectedTab === "past" 
+            ? "Your past trips will appear here." 
+            : "You haven't cancelled any bookings yet."}
+      </Text>
+      
+      {selectedTab !== "active" && (
         <TouchableOpacity
-          style={[
-            styles.customTabButton,
-            selectedTab === "active" && styles.activeTabButton,
-          ]}
+          style={[styles.emptyStateButton, { backgroundColor: theme.colors.primary }]}
           onPress={() => setSelectedTab("active")}
         >
-          <Text
-            style={[
-              styles.tabButtonText,
-              selectedTab === "active" && styles.activeTabText,
-            ]}
-          >
-            Active
-          </Text>
+          <Text style={styles.emptyStateButtonText}>Go to Active Tickets</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[
-            styles.customTabButton,
-            selectedTab === "past" && styles.activeTabButton,
-          ]}
-          onPress={() => setSelectedTab("past")}
-        >
-          <Text
-            style={[
-              styles.tabButtonText,
-              selectedTab === "past" && styles.activeTabText,
-            ]}
-          >
-            Past
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[
-            styles.customTabButton,
-            selectedTab === "cancelled" && styles.activeTabButton,
-          ]}
-          onPress={() => setSelectedTab("cancelled")}
-        >
-          <Text
-            style={[
-              styles.tabButtonText,
-              selectedTab === "cancelled" && styles.activeTabText,
-            ]}
-          >
-            Cancelled
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Content */}
-      {loading ? (
-        <ActivityIndicator
-          size="large"
-          color="#2C3E50"
-          style={{ marginTop: 40 }}
-        />
-      ) : deleteLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2C3E50" />
-          <Text style={styles.loadingText}>Cancelling your booking...</Text>
-        </View>
-      ) : (
-        <Animatable.View animation="fadeInUp" duration={700} style={{ flex: 1 }}>
-          <FlatList
-            data={filteredTickets}
-            keyExtractor={(item, index) => `${item._id}_${index}`}
-            renderItem={({ item }) => (
-              <TicketCard
-                ticket={item}
-                onDelete={() => initiateDeleteProcess(item)}
-                isActiveTicket={selectedTab === "active"}
-              />
-            )}
-            contentContainerStyle={{ paddingBottom: 40 }}
-            ListEmptyComponent={() => (
-              <View style={styles.noTicketsContainer}>
-                <Text style={styles.noTicketsText}>
-                  No {selectedTab} tickets found.
-                </Text>
-              </View>
-            )}
-          />
-        </Animatable.View>
       )}
+    </Animatable.View>
+  );
+
+  return (
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: "#f8fafc" }]}>
+      <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
+      
+      <View style={styles.container}>
+        {/* Header Section */}
+        <Animatable.View animation="fadeIn" duration={800} style={styles.headerSection}>
+          <View style={styles.headerTextContainer}>
+            <Text style={[styles.headerTitle, { color: theme.colors.primary }]}>My Tickets</Text>
+            <Text style={styles.headerSubtitle}>View and manage your bookings</Text>
+          </View>
+          
+          <View style={[styles.headerIconContainer, { backgroundColor: `${theme.colors.primary}15` }]}>
+            <MaterialIcons name="receipt-long" size={26} color={theme.colors.primary} />
+          </View>
+        </Animatable.View>
+
+        {/* Tabs Container */}
+        <Animatable.View animation="fadeInUp" duration={800} delay={200}>
+          <View style={styles.tabsOuterContainer}>
+            <View style={styles.tabsContainer}>
+              {['active', 'past', 'cancelled'].map((tab) => (
+                <TouchableOpacity
+                  key={tab}
+                  style={[
+                    styles.customTabButton,
+                    selectedTab === tab 
+                      ? [styles.activeTab, { backgroundColor: theme.colors.primary }] 
+                      : styles.inactiveTab,
+                  ]}
+                  onPress={() => setSelectedTab(tab)}
+                >
+                  <MaterialIcons 
+                    name={getTabIcon(tab)} 
+                    size={20} 
+                    color={selectedTab === tab ? "#FFFFFF" : theme.colors.secondary} 
+                    style={styles.tabIcon}
+                  />
+                  <Text
+                    style={[
+                      styles.tabButtonText,
+                      selectedTab === tab 
+                        ? styles.activeTabText
+                        : [styles.inactiveTabText, { color: theme.colors.secondary }],
+                    ]}
+                  >
+                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </Text>
+                  
+ 
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </Animatable.View>
+
+        {/* Content Area */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={[styles.loadingText, { color: theme.colors.secondary }]}>
+              Loading your tickets...
+            </Text>
+          </View>
+        ) : deleteLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={[styles.loadingText, { color: theme.colors.secondary }]}>
+              Cancelling your booking...
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.contentContainer}>
+            <Animatable.View animation="fadeInUp" duration={700} delay={250} style={{ flex: 1 }}>
+              <FlatList
+                data={filteredTickets}
+                keyExtractor={(item, index) => `${item._id}_${index}`}
+                renderItem={({ item, index }) => (
+                  <Animatable.View
+                    animation="fadeInUp"
+                    duration={400}
+                    delay={index * 100}
+                  >
+                    <TicketCard
+                      ticket={item}
+                      onDelete={() => initiateDeleteProcess(item)}
+                      isActiveTicket={selectedTab === "active"}
+                      theme={theme}
+                    />
+                  </Animatable.View>
+                )}
+                contentContainerStyle={styles.listContainer}
+                ListEmptyComponent={renderEmptyState}
+                showsVerticalScrollIndicator={false}
+              />
+            </Animatable.View>
+          </View>
+        )}
+      </View>
 
       {/* Custom Modals */}
       <ConfirmationModal />
       <SuccessModal />
-    </View>
+    </SafeAreaView>
   );
 };
 
-export default Ticket;
-
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 60,
-    backgroundColor: "#FFFFFF",
   },
-  header: {
-    fontSize: 28,
-    color: "#2C3E50",
+  headerSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 10,
     marginBottom: 16,
-    fontWeight: "bold",
-    textAlign: "center",
+    paddingHorizontal: 8,
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#64748B",
+  },
+  headerIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  tabsOuterContainer: {
+    paddingHorizontal: 8,
+    marginBottom: 16,
   },
   tabsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 20,
-    paddingHorizontal: 6,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 6,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
-  customTabButton: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    borderRadius: 25,
-    marginHorizontal: 4,
-    backgroundColor: "#E8EAF6",
+customTabButton: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  paddingVertical: 10,
+  paddingHorizontal: 10, // increased for breathing room
+  borderRadius: 10,
+  marginHorizontal: 3,
+  minWidth: 100, // ensure enough space for "Cancelled"
+},
+
+  activeTab: {
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
-  activeTabButton: {
-    backgroundColor: "#3F51B5",
+  inactiveTab: {
+    backgroundColor: "transparent",
+  },
+  tabIcon: {
+    marginRight: 6,
   },
   tabButtonText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "600",
-    color: "#5C6BC0",
   },
   activeTabText: {
     color: "#FFFFFF",
   },
-  noTicketsContainer: {
-    marginTop: 60,
-    alignItems: "center",
+  inactiveTabText: {
+    color: "#94A3B8",
   },
-  noTicketsText: {
-    color: "#95A5A6",
-    fontSize: 16,
+  tabBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 6,
+    paddingHorizontal: 5,
+  },
+  tabBadgeText: {
+    fontSize: 10,
+    fontWeight: "bold",
+  },
+  contentContainer: {
+    flex: 1,
+  },
+  listContainer: {
+    paddingBottom: 20,
   },
   loadingContainer: {
     flex: 1,
@@ -379,61 +551,124 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    color: "#2C3E50",
-    fontSize: 16,
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  emptyStateContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyStateIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "#F8FAFC",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: "#64748B",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  emptyStateButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+  },
+  emptyStateButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 14,
   },
   
   // Modal Overlay
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   
   // Confirmation Modal Styles
   confirmModalContainer: {
-    width: '85%',
+    width: width * 0.85,
     backgroundColor: 'white',
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: '#E74C3C',
     overflow: 'hidden',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 5,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
-  confirmModalContent: {
-    padding: 22,
+  modalHeader: {
+    backgroundColor: '#E74C3C',
+    paddingVertical: 16,
+    alignItems: 'center',
   },
   confirmModalTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#E74C3C',
+  },
+  confirmModalContent: {
+    padding: 24,
+  },
+  warningIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#E74C3C',
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
     marginBottom: 16,
-    textAlign: 'center',
   },
   confirmModalText: {
     fontSize: 16,
     color: '#34495E',
-    marginBottom: 16,
+    marginBottom: 20,
     textAlign: 'center',
     lineHeight: 22,
   },
   ticketInfoContainer: {
-    backgroundColor: '#F9EBEA',
-    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
     padding: 12,
-    marginBottom: 20,
+    marginBottom: 24,
     borderLeftWidth: 3,
-    borderLeftColor: '#E74C3C',
   },
-  ticketInfoText: {
-    fontSize: 14,
-    color: '#34495E',
-    marginBottom: 4,
+  ticketInfoIcon: {
+    marginRight: 10,
+  },
+  ticketInfoTextContainer: {
+    flex: 1,
+  },
+  ticketInfoTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 2,
+  },
+  ticketInfoDate: {
+    fontSize: 13,
+    color: '#64748B',
   },
   confirmModalButtons: {
     flexDirection: 'row',
@@ -441,24 +676,23 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-    paddingVertical: 12,
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 14,
     paddingHorizontal: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     marginRight: 8,
     alignItems: 'center',
   },
   cancelButtonText: {
-    color: '#7F8C8D',
+    color: '#64748B',
     fontWeight: '600',
     fontSize: 14,
   },
   confirmButton: {
     flex: 1,
-    backgroundColor: '#E74C3C',
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     marginLeft: 8,
     alignItems: 'center',
   },
@@ -470,44 +704,44 @@ const styles = StyleSheet.create({
   
   // Success Modal Styles
   successModalContainer: {
-    width: '85%',
+    width: width * 0.85,
     backgroundColor: 'white',
     borderRadius: 20,
-    overflow: 'hidden',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  successModalContent: {
-    padding: 24,
+    padding: 30,
     alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 5,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
-  successModalIcon: {
-    fontSize: 50,
-    color: '#2ECC71',
-    marginBottom: 16,
+  successIconContainer: {
+    marginBottom: 20,
   },
   successModalTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#2ECC71',
     marginBottom: 12,
   },
   successModalText: {
     fontSize: 16,
-    color: '#34495E',
+    color: '#64748B',
     marginBottom: 24,
     textAlign: 'center',
     lineHeight: 22,
   },
   dismissButton: {
-    backgroundColor: '#2ECC71',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    borderRadius: 12,
     alignItems: 'center',
+    width: '100%',
   },
   dismissButtonText: {
     color: 'white',
@@ -515,3 +749,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+
+export default Ticket;

@@ -6,6 +6,10 @@ import {
   ActivityIndicator,
   ScrollView,
   Alert,
+  TouchableOpacity,
+  StatusBar,
+  SafeAreaView,
+  Animated,
 } from "react-native";
 import axios from "axios";
 import { useNavigation } from "@react-navigation/native";
@@ -15,9 +19,12 @@ import AppButton from "../../Components/Button";
 import BusCard from "./BusCard";
 import { apiBaseUrl } from "../../config/urls";
 import * as Animatable from "react-native-animatable";
+import { MaterialIcons } from "react-native-vector-icons";
+import { useTheme } from "../../theme/theme";
 
 const BookingForm = () => {
   const navigation = useNavigation();
+  const { theme } = useTheme();
   const [hasSearched, setHasSearched] = useState(false);
   const [filteredBuses, setFilteredBuses] = useState([]);
   const [buses, setBuses] = useState([]);
@@ -34,9 +41,22 @@ const BookingForm = () => {
     date: "",
   });
 
+  // New state to track form completeness
+  const [isFormComplete, setIsFormComplete] = useState(false);
+
   useEffect(() => {
     fetchBuses();
   }, []);
+
+  // Effect to check if all form fields are filled
+  useEffect(() => {
+    const { fromCity, toCity, date } = formData;
+    const complete = fromCity && fromCity.trim() !== "" && 
+                     toCity && toCity.trim() !== "" && 
+                     date && date !== "" && 
+                     fromCity && toCity && fromCity.trim() !== toCity.trim();
+    setIsFormComplete(complete);
+  }, [formData]);
 
   const fetchBuses = async () => {
     setLoading(true);
@@ -72,12 +92,12 @@ const BookingForm = () => {
     });
 
     // If changing fromCity or toCity, check if they're the same
-    if (name === "fromCity" && value === formData.toCity && value !== "") {
+    if (name === "fromCity" && value && formData.toCity && value === formData.toCity) {
       setFormErrors({
         ...formErrors,
         fromCity: "Departure and arrival cities cannot be the same",
       });
-    } else if (name === "toCity" && value === formData.fromCity && value !== "") {
+    } else if (name === "toCity" && value && formData.fromCity && value === formData.fromCity) {
       setFormErrors({
         ...formErrors,
         toCity: "Departure and arrival cities cannot be the same",
@@ -125,12 +145,12 @@ const BookingForm = () => {
     let isValid = true;
     
     // Check for empty fields
-    if (!fromCity.trim()) {
+    if (!fromCity || !fromCity.trim()) {
       newErrors.fromCity = "Please select a departure city";
       isValid = false;
     }
     
-    if (!toCity.trim()) {
+    if (!toCity || !toCity.trim()) {
       newErrors.toCity = "Please select an arrival city";
       isValid = false;
     }
@@ -141,7 +161,7 @@ const BookingForm = () => {
     }
     
     // Check if fromCity and toCity are the same
-    if (fromCity.trim() && toCity.trim() && fromCity.trim() === toCity.trim()) {
+    if (fromCity && toCity && fromCity.trim() && toCity.trim() && fromCity.trim() === toCity.trim()) {
       newErrors.fromCity = "Departure and arrival cities cannot be the same";
       newErrors.toCity = "Departure and arrival cities cannot be the same";
       isValid = false;
@@ -192,19 +212,23 @@ const BookingForm = () => {
   };
 
   const handleSubmit = () => {
-    if (!validateForm()) {
-      // Display alert with all errors
-      const errorMessages = Object.values(formErrors).filter(error => error);
-      if (errorMessages.length > 0) {
-        Alert.alert(
-          "Form Validation Error",
-          errorMessages.join("\n"),
-          [{ text: "OK" }]
-        );
-      }
+    // Run validation first
+    const isValid = validateForm();
+    
+    // Get all error messages after validation
+    const errorMessages = Object.values(formErrors).filter(error => error);
+    
+    // If there are errors, show them in an alert
+    if (!isValid) {
+      Alert.alert(
+        "Form Validation Error",
+        errorMessages.join("\n"),
+        [{ text: "OK" }]
+      );
       return;
     }
     
+    // If validation passes, proceed with search
     setLoading(true);
     setHasSearched(true);
     filterBuses();
@@ -224,180 +248,384 @@ const BookingForm = () => {
     return formErrors[fieldName] ? styles.inputError : {};
   };
 
+  const renderHeaderWithIcon = (title, icon) => (
+    <View style={styles.sectionHeader}>
+      <View style={[styles.iconContainer, { backgroundColor: `${theme.colors.basic}50` }]}>
+        <MaterialIcons name={icon} size={16} color={theme.colors.primary} />
+      </View>
+      <Text style={styles.sectionHeaderText}>{title}</Text>
+    </View>
+  );
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Animatable.View animation="fadeInDown" duration={700}>
-        <Text style={styles.title}>🚌 Book Your Bus</Text>
-      </Animatable.View>
+    <SafeAreaView style={styles.root}>
+      <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
+      
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerTitle}>Find Your Journey</Text>
+      </View>
+      
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animatable.View animation="fadeIn" duration={800}>
+          <View style={[styles.bannerContainer, { backgroundColor: "#E8E8F0" }]}>
+            <View style={styles.bannerTextContainer}>
+              <Text style={[styles.bannerTitle, { color: "#1E293B" }]}>Book Your Trip</Text>
+              <Text style={[styles.bannerSubtitle, { color: "#64748B" }]}>
+                Find bus routes
+              </Text>
+            </View>
+            <View style={[styles.busIconContainer, { backgroundColor: "rgba(41, 41, 102, 0.1)" }]}>
+              <MaterialIcons name="directions-bus" size={32} color={theme.colors.primary} />
+            </View>
+          </View>
+        </Animatable.View>
 
-      <Animatable.View animation="fadeInUp" duration={700} delay={100}>
-        <View style={styles.card}>
-          <View>
-            <AppSelect
-              selectedValue={formData.fromCity}
-              items={cities.map((city) => ({ label: city, value: city }))}
-              onValueChange={(itemValue) =>
-                handleInputChange("fromCity", itemValue)
-              }
-              value={formData.fromCity}
-              placeholder="📍 From City"
-              style={[styles.select, getErrorStyle("fromCity")]}
-            />
-            {formErrors.fromCity ? (
-              <Text style={styles.errorText}>{formErrors.fromCity}</Text>
-            ) : null}
-          </View>
-          
-          <View>
-            <AppSelect
-              selectedValue={formData.toCity}
-              items={cities.map((city) => ({ label: city, value: city }))}
-              onValueChange={(itemValue) =>
-                handleInputChange("toCity", itemValue)
-              }
-              value={formData.toCity}
-              placeholder="📍 To City"
-              style={[styles.select, getErrorStyle("toCity")]}
-            />
-            {formErrors.toCity ? (
-              <Text style={styles.errorText}>{formErrors.toCity}</Text>
-            ) : null}
-          </View>
-          
-          <View>
-            <AppDatePicker
-              value={formData.date}
-              onChange={onDateChange}
-              placeholder="🗓️ Select Date"
-              variant="primary"
-              borderRadius={12}
-              style={getErrorStyle("date")}
-              minimumDate={new Date()} // Prevent selecting past dates in the date picker
-            />
-            {formErrors.date ? (
-              <Text style={styles.errorText}>{formErrors.date}</Text>
-            ) : null}
-          </View>
-          
-          <AppButton text="🔍 Search" onPress={handleSubmit} variant="secondary" />
-        </View>
-
-        <View style={styles.results}>
-          <View style={styles.resultsHeader}>
-            <Text style={styles.resultsTitle}>
-              {hasSearched ? "🔍 Search Results" : "🧾 All Available Buses"}
-            </Text>
-          </View>
-
-          {loading ? (
-            <ActivityIndicator size="large" color="#0000ff" />
-          ) : busesToShow.length > 0 ? (
-            busesToShow.map((bus, index) => (
-              <Animatable.View
-                key={bus._id || index}
-                animation="fadeInUp"
-                delay={index * 100}
-              >
-                <BusCard bus={bus} index={index + 1} onBook={handleBookTicket} />
-              </Animatable.View>
-            ))
-          ) : (
-            <View style={styles.noResultsContainer}>
-              <Text style={styles.noBusText}>No buses found</Text>
-              {hasSearched && (
-                <AppButton 
-                  text="View All Available Buses" 
-                  onPress={handleShowAllBuses} 
-                  variant="primary"
-                  style={styles.viewAllButton}
+        <Animatable.View animation="fadeInUp" duration={800} delay={200}>
+          <View style={styles.formCard}>
+            {renderHeaderWithIcon("Trip Details", "map")}
+            
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>From</Text>
+              <View style={styles.inputWrapper}>
+                <MaterialIcons name="place" size={20} color={theme.colors.primary} style={styles.inputIcon} />
+                <AppSelect
+                  selectedValue={formData.fromCity}
+                  items={cities.map((city) => ({ label: city, value: city }))}
+                  onValueChange={(itemValue) =>
+                    handleInputChange("fromCity", itemValue)
+                  }
+                  value={formData.fromCity}
+                  placeholder="Select departure city"
+                  style={[styles.select, getErrorStyle("fromCity")]}
                 />
+              </View>
+              {formErrors.fromCity ? (
+                <Text style={styles.errorText}>{formErrors.fromCity}</Text>
+              ) : null}
+            </View>
+            
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>To</Text>
+              <View style={styles.inputWrapper}>
+                <MaterialIcons name="pin-drop" size={20} color={theme.colors.primary} style={styles.inputIcon} />
+                <AppSelect
+                  selectedValue={formData.toCity}
+                  items={cities.map((city) => ({ label: city, value: city }))}
+                  onValueChange={(itemValue) =>
+                    handleInputChange("toCity", itemValue)
+                  }
+                  value={formData.toCity}
+                  placeholder="Select destination city"
+                  style={[styles.select, getErrorStyle("toCity")]}
+                />
+              </View>
+              {formErrors.toCity ? (
+                <Text style={styles.errorText}>{formErrors.toCity}</Text>
+              ) : null}
+            </View>
+            
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Travel Date</Text>
+              <View style={styles.inputWrapper}>
+                <MaterialIcons name="event" size={20} color={theme.colors.primary} style={styles.inputIcon} />
+                <AppDatePicker
+                  value={formData.date}
+                  onChange={onDateChange}
+                  placeholder="Select your travel date"
+                  variant="primary"
+                  borderRadius={12}
+                  style={[styles.datePicker, getErrorStyle("date")]}
+                  minimumDate={new Date()}
+                />
+              </View>
+              {formErrors.date ? (
+                <Text style={styles.errorText}>{formErrors.date}</Text>
+              ) : null}
+            </View>
+            
+            <AppButton
+              text="Find Buses"
+              onPress={handleSubmit}
+              variant={isFormComplete ? "primary" : "disabled"}
+              style={[
+                styles.searchButtonContainer,
+                !isFormComplete && styles.disabledButton
+              ]}
+              disabled={!isFormComplete}
+            />
+            {!isFormComplete && (
+              <Text style={styles.disabledButtonInfo}>
+                Please fill all fields to search for buses
+              </Text>
+            )}
+          </View>
+        </Animatable.View>
+
+        <Animatable.View animation="fadeInUp" duration={800} delay={300}>
+          <View style={styles.resultsContainer}>
+            <View style={styles.resultsHeader}>
+              <View style={styles.resultsHeaderLeft}>
+                <MaterialIcons 
+                  name={hasSearched ? "filter-list" : "view-list"} 
+                  size={22} 
+                  color={theme.colors.primary} 
+                />
+                <Text style={styles.resultsTitle}>
+                  {hasSearched ? "Search Results" : "Available Buses"}
+                </Text>
+              </View>
+              
+              {hasSearched && busesToShow.length > 0 && (
+                <View style={[styles.resultsBadge, { backgroundColor: `${theme.colors.basic}50` }]}>
+                  <Text style={[styles.resultsBadgeText, { color: theme.colors.primary }]}>{busesToShow.length}</Text>
+                </View>
               )}
             </View>
-          )}
-        </View>
-      </Animatable.View>
-    </ScrollView>
+
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={styles.loadingText}>Finding buses...</Text>
+              </View>
+            ) : busesToShow.length > 0 ? (
+              busesToShow.map((bus, index) => (
+                <Animatable.View
+                  key={bus._id || index}
+                  animation="fadeInUp"
+                  delay={index * 100}
+                >
+                  <BusCard bus={bus} index={index + 1} onBook={handleBookTicket} />
+                </Animatable.View>
+              ))
+            ) : (
+              <View style={styles.noResultsContainer}>
+                <MaterialIcons name="sentiment-dissatisfied" size={50} color="#CBD5E1" />
+                <Text style={styles.noBusText}>No buses found for your search</Text>
+                {hasSearched && (
+                  <AppButton
+                    text="View All Available Buses"
+                    onPress={handleShowAllBuses}
+                    variant="secondary"
+                    style={{ marginTop: 12 }}
+                  />
+                )}
+              </View>
+            )}
+          </View>
+        </Animatable.View>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 export default BookingForm;
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+  },
+  headerContainer: {
     paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 40,
-    backgroundColor: "#F4F6F7",
-    flexGrow: 1,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+    backgroundColor: "#FFFFFF",
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    textAlign: "center",
-    color: "#2C3E50",
-    marginBottom: 12,
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#1E293B",
   },
-  card: {
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+  scrollContainer: {
+    paddingBottom: 12,
   },
-  select: {
-    backgroundColor: "#F0F3F5",
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
+  bannerContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 12,
+    marginHorizontal: 12,
+    marginTop: 8,
     marginBottom: 6,
-    borderWidth: 1,
-    borderColor: "#D0D3D4",
-    color: "#2C3E50",
+    borderRadius: 24,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: 10,
+    elevation: 2,
+    height: 70,
+  },
+  bannerTextContainer: {
+    flex: 1,
+    paddingLeft: 8,
+  },
+  bannerTitle: {
+    fontSize: 19,
+    fontWeight: "bold",
+    marginBottom: 2,
+  },
+  bannerSubtitle: {
+    fontSize: 13,
+  },
+  busIconContainer: {
+    width: 55,
+    height: 55,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  formCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 12,
+    margin: 12,
+    marginTop: 6,
+    marginBottom: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     elevation: 2,
   },
-  inputError: {
-    borderColor: "#E74C3C",
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  iconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
+  sectionHeaderText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1E293B",
+  },
+  formGroup: {
+    marginBottom: 8,
+  },
+  formLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#64748B",
+    marginBottom: 4,
+    paddingLeft: 4,
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
     borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  inputIcon: {
+    paddingLeft: 12,
+  },
+  select: {
+    flex: 1,
+    paddingLeft: 8,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: "#334155",
+    backgroundColor: "transparent",
+  },
+  datePicker: {
+    flex: 1,
+    paddingLeft: 8,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: "#334155",
+    backgroundColor: "transparent",
+  },
+  inputError: {
+    borderColor: "#EF4444",
   },
   errorText: {
-    color: "#E74C3C",
-    fontSize: 12,
-    marginBottom: 10,
+    color: "#EF4444",
+    fontSize: 11,
+    marginTop: 2,
     marginLeft: 4,
   },
-  results: {
-    marginTop: 24,
+  disabledButtonInfo: {
+    color: "#94A3B8",
+    fontSize: 11,
+    textAlign: "center",
+    marginTop: 4,
+  },
+  disabledButton: {
+    opacity: 0.6,
+    backgroundColor: "#CBD5E1",
+  },
+  searchButtonContainer: {
+    marginTop: 4,
+  },
+  resultsContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 12,
+    margin: 12,
+    marginTop: 0,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
   resultsHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  resultsHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   resultsTitle: {
-    fontSize: 22,
+    fontSize: 15,
     fontWeight: "600",
-    color: "#2C3E50",
+    color: "#1E293B",
+    marginLeft: 8,
   },
-  noBusText: {
-    fontSize: 16,
-    textAlign: "center",
-    marginTop: 20,
-    color: "#7F8C8D",
+  resultsBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 16,
+  },
+  resultsBadgeText: {
+    fontWeight: "600",
+    fontSize: 12,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    paddingVertical: 25,
+  },
+  loadingText: {
+    marginTop: 10,
+    color: "#64748B",
+    fontSize: 14,
   },
   noResultsContainer: {
     alignItems: "center",
-    paddingVertical: 20,
+    paddingVertical: 25,
   },
-  viewAllButton: {
-    marginTop: 16,
+  noBusText: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#64748B",
+    marginTop: 12,
+    marginBottom: 16,
   },
 });

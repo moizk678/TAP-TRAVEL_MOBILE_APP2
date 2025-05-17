@@ -1,19 +1,32 @@
 import React, { useEffect, useState } from "react";
-import { Image, View, Text, StyleSheet, ScrollView } from "react-native";
+import {
+  Image,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  StatusBar,
+  SafeAreaView,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import axios from "axios";
-import AppButton from "../../Components/Button";
-import { apiBaseUrl } from "../../config/urls";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { jwtDecode } from "jwt-decode";
-import apiClient from "../../api/apiClient";
 import * as Location from "expo-location";
+import * as Animatable from "react-native-animatable";
+import { MaterialIcons } from "react-native-vector-icons";
+
+import AppButton from "../../Components/Button";
+import { apiBaseUrl } from "../../config/urls";
+import apiClient from "../../api/apiClient";
 import { formatDate } from "../../utils/helperFunction";
 import { busStatuses } from "../../utils/bus-statuses";
-import Loader from "../../Components/Loader";
+import { useTheme } from "../../theme/theme";
 
 const ActiveTicketsScreen = () => {
   const navigation = useNavigation();
+  const { theme } = useTheme();
   const [activeTickets, setActiveTickets] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -27,17 +40,16 @@ const ActiveTicketsScreen = () => {
       const token = await AsyncStorage.getItem("token");
       const decoded = jwtDecode(token);
       const userId = decoded?.sub;
-const { data } = await apiClient(
-  `/ticket/user/information/${userId}?checkUptoEndDate=true`
-);
+      const { data } = await apiClient(
+        `/ticket/user/information/${userId}?checkUptoEndDate=true`
+      );
 
-// Filter out cancelled tickets
-const activeNonCancelled = (data?.active || []).filter(
-  (ticket) => ticket.ticketStatus !== "cancelled"
-);
+      // Filter out cancelled tickets
+      const activeNonCancelled = (data?.active || []).filter(
+        (ticket) => ticket.ticketStatus !== "cancelled"
+      );
 
-setActiveTickets(activeNonCancelled);
-
+      setActiveTickets(activeNonCancelled);
     } catch (error) {
       console.error("Failed to fetch tickets:", error);
     } finally {
@@ -96,109 +108,378 @@ setActiveTickets(activeNonCancelled);
     }
   };
 
-  return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.header}>Choose Your Route</Text>
+  const renderHeaderWithIcon = (title, icon) => (
+    <View style={styles.sectionHeader}>
+      <View style={[styles.iconContainer, { backgroundColor: `${theme.colors.basic}50` }]}>
+        <MaterialIcons name={icon} size={16} color={theme.colors.primary} />
+      </View>
+      <Text style={styles.sectionHeaderText}>{title}</Text>
+    </View>
+  );
 
-      {loading ? (
-        <Loader />
-      ) : processedTickets.length > 0 ? (
-        processedTickets.map((ticket, index) => (
-          <View key={index} style={styles.card}>
-            {ticket.route ? (
-              <Text style={styles.route}>
-                {ticket?.route?.startCity} → {ticket?.route?.endCity}
+  const renderTicketStatusBadge = (status) => {
+    let badgeStyle = styles.statusBadge;
+    let textStyle = styles.statusText;
+    let statusText = status || "Unknown";
+    let iconName = "help-outline";
+
+    switch (status?.toLowerCase()) {
+      case "active":
+        badgeStyle = {...badgeStyle, backgroundColor: `${theme.colors.green}20`};
+        textStyle = {...textStyle, color: theme.colors.green};
+        statusText = "Active";
+        iconName = "check-circle";
+        break;
+      case "scanned":
+        badgeStyle = {...badgeStyle, backgroundColor: `${theme.colors.primary}20`};
+        textStyle = {...textStyle, color: theme.colors.primary};
+        statusText = "Scanned";
+        iconName = "qr-code-scanner";
+        break;
+      default:
+        badgeStyle = {...badgeStyle, backgroundColor: "#64748B20"};
+        textStyle = {...textStyle, color: "#64748B"};
+    }
+
+    return (
+      <View style={badgeStyle}>
+        <MaterialIcons name={iconName} size={12} color={textStyle.color} style={{marginRight: 4}} />
+        <Text style={textStyle}>{statusText}</Text>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.root}>
+      <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
+      
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerTitle}>Your Active Tickets</Text>
+      </View>
+      
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animatable.View animation="fadeIn" duration={800}>
+          <View style={[styles.bannerContainer, { backgroundColor: "#E8E8F0" }]}>
+            <View style={styles.bannerTextContainer}>
+              <Text style={[styles.bannerTitle, { color: "#1E293B" }]}>Active Journeys</Text>
+              <Text style={[styles.bannerSubtitle, { color: "#64748B" }]}>
+                Track and manage your trips
               </Text>
-            ) : (
-              <Text style={styles.route}>Route information is unavailable</Text>
-            )}
-            <Text style={styles.date}>Date: {formatDate(ticket?.date)}</Text>
-            <Text style={styles.bus}>Bus: {ticket?.busDetails?.busNumber}</Text>
-            <View style={styles.imageContainer}>
-              <Image
-                source={{
-                  uri: "https://t4.ftcdn.net/jpg/02/69/47/51/360_F_269475198_k41qahrZ1j4RK1sarncMiFHpcmE2qllQ.jpg",
-                }}
-                style={styles.busImage}
-                resizeMode="cover"
+            </View>
+            <View style={[styles.busIconContainer, { backgroundColor: "rgba(41, 41, 102, 0.1)" }]}>
+              <MaterialIcons name="directions-bus" size={32} color={theme.colors.primary} />
+            </View>
+          </View>
+        </Animatable.View>
+
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={styles.loadingText}>Loading your tickets...</Text>
+          </View>
+        ) : processedTickets.length > 0 ? (
+          <Animatable.View animation="fadeInUp" duration={800} delay={200}>
+            <View style={styles.ticketsContainer}>
+              {renderHeaderWithIcon("Choose Your Route", "map")}
+              
+              {processedTickets.map((ticket, index) => (
+                <Animatable.View
+                  key={index}
+                  animation="fadeInUp"
+                  delay={index * 100}
+                  style={styles.ticketCard}
+                >
+                  <View style={styles.ticketHeader}>
+                    <View style={styles.routeContainer}>
+                      {ticket.route ? (
+                        <>
+                          <Text style={styles.cityText}>{ticket?.route?.startCity}</Text>
+                          <View style={styles.arrowContainer}>
+                            <View style={styles.arrowLine}></View>
+                            <MaterialIcons name="arrow-forward" size={16} color={theme.colors.primary} />
+                            <View style={styles.arrowLine}></View>
+                          </View>
+                          <Text style={styles.cityText}>{ticket?.route?.endCity}</Text>
+                        </>
+                      ) : (
+                        <Text style={styles.routeUnavailable}>Route information is unavailable</Text>
+                      )}
+                    </View>
+                    {renderTicketStatusBadge(ticket?.ticketStatus)}
+                  </View>
+                  
+                  <View style={styles.ticketInfoContainer}>
+                    <View style={styles.infoRow}>
+                      <View style={styles.infoItem}>
+                        <MaterialIcons name="event" size={16} color="#64748B" />
+                        <Text style={styles.infoLabel}>Date</Text>
+                        <Text style={styles.infoValue}>{formatDate(ticket?.date)}</Text>
+                      </View>
+                      
+                      <View style={styles.infoItem}>
+                        <MaterialIcons name="directions-bus" size={16} color="#64748B" />
+                        <Text style={styles.infoLabel}>Bus</Text>
+                        <Text style={styles.infoValue}>{ticket?.busDetails?.busNumber || "N/A"}</Text>
+                      </View>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.imageContainer}>
+                    <Image
+                      source={{
+                        uri: "https://t4.ftcdn.net/jpg/02/69/47/51/360_F_269475198_k41qahrZ1j4RK1sarncMiFHpcmE2qllQ.jpg",
+                      }}
+                      style={styles.busImage}
+                      resizeMode="cover"
+                    />
+                  </View>
+                  
+                  {ticket.shouldShowNavigationButton && (
+                    <AppButton
+                      text="Start Navigation"
+                      onPress={() => handleChoose(ticket)}
+                      variant="primary"
+                      style={styles.navigationButton}
+                    />
+                  )}
+                </Animatable.View>
+              ))}
+            </View>
+          </Animatable.View>
+        ) : (
+          <Animatable.View animation="fadeIn" duration={800} delay={200}>
+            <View style={styles.emptyStateContainer}>
+              <MaterialIcons name="confirmation-number" size={70} color="#CBD5E1" />
+              <Text style={styles.emptyStateTitle}>No Active Tickets</Text>
+              <Text style={styles.emptyStateMessage}>You don't have any active tickets at the moment.</Text>
+              <AppButton
+                text="Book a New Trip"
+                onPress={() => navigation.navigate("BookingForm")}
+                variant="primary"
+                style={styles.bookButton}
               />
             </View>
-            {ticket.shouldShowNavigationButton && (
-              <AppButton
-                text="Start Navigation"
-                onPress={() => handleChoose(ticket)}
-                variant="primary"
-              />
-            )}
-            {/* <AppButton
-              text="Start Navigation"
-              onPress={() => handleChoose(ticket)}
-              variant="primary"
-            /> */}
-          </View>
-        ))
-      ) : (
-        <Text style={styles.emptyText}>No active tickets available.</Text>
-      )}
-    </ScrollView>
+          </Animatable.View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 16,
+  root: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+  },
+  headerContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
     backgroundColor: "#FFFFFF",
   },
-  imageContainer: {
-    flex: 3,
-    marginRight: 12,
-    borderRadius: 8,
-    overflow: "hidden",
-    backgroundColor: "#ddd",
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#1E293B",
+  },
+  scrollContainer: {
+    paddingBottom: 16,
+  },
+  bannerContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    marginHorizontal: 12,
+    marginTop: 12,
+    marginBottom: 6,
+    borderRadius: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    height: 80,
+  },
+  bannerTextContainer: {
+    flex: 1,
+    paddingLeft: 8,
+  },
+  bannerTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  bannerSubtitle: {
+    fontSize: 14,
+  },
+  busIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#64748B",
+  },
+  ticketsContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 12,
+    margin: 12,
+    marginTop: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  iconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
+  sectionHeaderText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1E293B",
+  },
+  ticketCard: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  ticketHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
   },
-
+  routeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  cityText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1E293B",
+  },
+  arrowContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+  },
+  arrowLine: {
+    height: 1,
+    backgroundColor: "#CBD5E1",
+    width: 10,
+  },
+  routeUnavailable: {
+    fontSize: 14,
+    color: "#94A3B8",
+    fontStyle: "italic",
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  ticketInfoContainer: {
+    marginBottom: 12,
+  },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  infoItem: {
+    flexDirection: "column",
+    alignItems: "flex-start",
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 4,
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#334155",
+  },
+  imageContainer: {
+    borderRadius: 12,
+    overflow: "hidden",
+    height: 150,
+    marginBottom: 12,
+  },
   busImage: {
     width: "100%",
     height: "100%",
-    aspectRatio: 1.5,
-    borderRadius: 8,
   },
-
-  header: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 16,
-    marginTop: 32,
-    textAlign: "center",
+  navigationButton: {
+    marginTop: 4,
   },
-  card: {
-    backgroundColor: "#F8F8F8",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
+  emptyStateContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 32,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    margin: 12,
+    marginTop: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     elevation: 2,
   },
-  route: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 6,
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1E293B",
+    marginTop: 16,
+    marginBottom: 8,
   },
-  date: {
+  emptyStateMessage: {
     fontSize: 14,
-    marginBottom: 4,
-    color: "#7F8C8D",
-  },
-  bus: {
-    fontSize: 14,
-    marginBottom: 10,
-    color: "#7F8C8D",
-  },
-  emptyText: {
+    color: "#64748B",
     textAlign: "center",
-    marginTop: 30,
-    fontSize: 16,
-    color: "#7F8C8D",
+    marginBottom: 24,
+  },
+  bookButton: {
+    width: "80%",
   },
 });
 

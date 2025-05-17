@@ -76,6 +76,7 @@ const AppDatePicker = ({
         mode="date"
         onConfirm={handleConfirm}
         onCancel={hideDatePicker}
+        minimumDate={new Date()} // Prevent selection of past dates
       />
     </View>
   );

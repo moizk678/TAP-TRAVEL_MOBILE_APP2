@@ -6,6 +6,10 @@ import {
   ScrollView,
   Modal,
   TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+  Animated,
+  Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { jwtDecode } from "jwt-decode";
@@ -15,8 +19,58 @@ import Toast from "react-native-toast-message";
 import AppInput from "../../Components/AppInput";
 import AppButton from "../../Components/Button";
 import RFIDOrderModal from "./RFIDOrderModal";
+import { MaterialIcons } from "react-native-vector-icons";
+import { useTheme } from "../../theme/theme";
+
+const ProfileSection = ({ icon, label, value, onPress }) => {
+  const { theme } = useTheme();
+  
+  return (
+    <TouchableOpacity 
+      style={styles.profileSection} 
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={styles.sectionHeader}>
+        <View style={[styles.iconContainer, { backgroundColor: theme.colors.basic }]}>
+          <MaterialIcons name={icon} size={22} color={theme.colors.primary} />
+        </View>
+        <Text style={[styles.label, { color: "#334155" }]}>{label}</Text>
+      </View>
+      <View style={styles.valueContainer}>
+        <Text style={styles.value}>{value}</Text>
+        <MaterialIcons name="chevron-right" size={24} color="#CBD5E1" />
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+const StatusBadge = ({ status }) => {
+  let bgColor = "#E2E8F0";
+  let textColor = "#64748B";
+  
+  if (status === "active") {
+    bgColor = "#DCFCE7";
+    textColor = "#166534";
+  } else if (status === "pending") {
+    bgColor = "#FEF9C3";
+    textColor = "#854D0E";
+  } else if (status === "booked") {
+    bgColor = "#DBEAFE";
+    textColor = "#1E40AF";
+  }
+  
+  return (
+    <View style={[styles.badge, { backgroundColor: bgColor }]}>
+      <Text style={[styles.badgeText, { color: textColor }]}>
+        {status?.charAt(0).toUpperCase() + status?.slice(1)}
+      </Text>
+    </View>
+  );
+};
 
 const Profile = () => {
+  const { theme } = useTheme();
   const [name, setName] = useState("");
   const [user, setUser] = useState(null);
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -26,10 +80,14 @@ const Profile = () => {
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState(null);
 
-  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editNameModalVisible, setEditNameModalVisible] = useState(false);
+  const [editPhoneModalVisible, setEditPhoneModalVisible] = useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  
+  // Animation state for buttons
+  const [logoutScale] = useState(new Animated.Value(1));
 
   const { logout } = useContext(AuthContext);
 
@@ -60,9 +118,9 @@ const Profile = () => {
     setLoading(false);
   };
 
-  const updateProfile = async () => {
-    if (!name || !phoneNumber) {
-      Toast.show({ type: "info", text1: "Name and Phone Number are required" });
+  const updateName = async () => {
+    if (!name) {
+      Toast.show({ type: "info", text1: "Name is required" });
       return;
     }
     try {
@@ -71,12 +129,30 @@ const Profile = () => {
       await apiClient.patch(`/user/update-profile`, {
         userId,
         name,
+      });
+      Toast.show({ type: "success", text1: "Name updated successfully" });
+      setEditNameModalVisible(false);
+    } catch (error) {
+      Toast.show({ type: "error", text1: "Name update failed" });
+    }
+  };
+
+  const updatePhoneNumber = async () => {
+    if (!phoneNumber) {
+      Toast.show({ type: "info", text1: "Phone Number is required" });
+      return;
+    }
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const { sub: userId } = jwtDecode(token);
+      await apiClient.patch(`/user/update-profile`, {
+        userId,
         phoneNumber,
       });
-      Toast.show({ type: "success", text1: "Profile updated successfully" });
-      setEditModalVisible(false);
+      Toast.show({ type: "success", text1: "Phone Number updated successfully" });
+      setEditPhoneModalVisible(false);
     } catch (error) {
-      Toast.show({ type: "error", text1: "Profile update failed" });
+      Toast.show({ type: "error", text1: "Phone Number update failed" });
     }
   };
 
@@ -129,90 +205,179 @@ const Profile = () => {
     }
   };
 
+  // Button animation handlers
+  const handlePressIn = () => {
+    Animated.spring(logoutScale, {
+      toValue: 0.96,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(logoutScale, {
+      toValue: 1,
+      friction: 3,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  };
+
   return (
-    <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <SafeAreaView style={[styles.root, { backgroundColor: "#f8fafc" }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
+      
+      <View style={styles.headerContainer}>
+        <Text style={[styles.headerTitle, { color: theme.colors.primary }]}>Profile</Text>
+      </View>
+      
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.profileHeader}>
+          <View style={[styles.avatarContainer, { backgroundColor: theme.colors.primary }]}>
+            <Text style={styles.avatarText}>
+              {name?.charAt(0)?.toUpperCase() || "U"}
+            </Text>
+          </View>
+          <Text style={styles.profileName}>{name}</Text>
+          <Text style={styles.profileEmail}>{email}</Text>
+        </View>
+
         <View style={styles.container}>
-          <Text style={styles.header}>Profile Settings</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.secondary }]}>Edit Personal Information</Text>
 
-          <Text style={styles.label}>Name</Text>
-          <Text style={styles.value}>{name}</Text>
-
-          <Text style={styles.label}>Email</Text>
-          <Text style={styles.value}>{email}</Text>
-
-          <Text style={styles.label}>Phone Number</Text>
-          <Text style={styles.value}>{phoneNumber}</Text>
-
-          <View style={{ marginVertical: 12 }} />
-          <AppButton
-            text="Edit Profile"
-            onPress={() => setEditModalVisible(true)}
-            variant="secondary"
+          <ProfileSection 
+            icon="person-outline" 
+            label="Full Name" 
+            value={name} 
+            onPress={() => setEditNameModalVisible(true)}
           />
 
-          <View style={styles.divider} />
+          <ProfileSection 
+            icon="phone-iphone" 
+            label="Phone Number" 
+            value={phoneNumber} 
+            onPress={() => setEditPhoneModalVisible(true)}
+          />
 
-          <AppButton
-            text="Change Password"
+          <ProfileSection 
+            icon="lock-outline" 
+            label="Password" 
+            value="••••••••" 
             onPress={() => setPasswordModalVisible(true)}
-            variant="secondary"
           />
 
-          <View style={styles.divider} />
+          <Text style={[styles.sectionTitle, {marginTop: 24, color: theme.colors.secondary}]}>RFID Card</Text>
 
           {user?.RFIDCardStatus === "pending" ? (
-            <AppButton
-              text="Order RFID Card"
-              variant="secondary"
+            <TouchableOpacity 
+              style={[styles.rfidButton, { backgroundColor: theme.colors.basic }]} 
               onPress={() => setShowOrderForm(true)}
-            />
-          ) : (
-            <AppButton
-              text={`RFID Status: ${user?.RFIDCardStatus}`}
-              variant="green"
-            />
-          )}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="credit-card" size={24} color={theme.colors.primary} />
+              <Text style={[styles.rfidButtonText, { color: theme.colors.primary }]}>Order RFID Card</Text>
+            </TouchableOpacity>
+          ) : user?.RFIDCardStatus === "booked" ? (
+            <View style={styles.rfidStatusContainer}>
+              <MaterialIcons 
+                name="hourglass-empty" 
+                size={24} 
+                color="#F59E0B" 
+              />
+              <Text style={styles.rfidStatusText}>
+                Delivery under progress...
+              </Text>
+            </View>
+          ) : user?.RFIDCardStatus === "delivered" ? (
+            <View style={styles.rfidStatusContainer}>
+              <MaterialIcons 
+                name="check-circle" 
+                size={24} 
+                color={theme.colors.green} 
+              />
+              <Text style={styles.rfidStatusText}>
+                Your RFID card is active.
+              </Text>
+            </View>
+          ) : null}
         </View>
       </ScrollView>
 
-      {/* Red Logout Button at bottom */}
+      {/* Logout Button */}
       <View style={styles.logoutWrapper}>
-       <AppButton
-  text="Logout"
-  onPress={logout}
-  variant="danger"
-/>
-
+        <Animated.View style={{ transform: [{ scale: logoutScale }] }}>
+          <TouchableOpacity 
+            style={styles.logoutButton} 
+            onPress={logout}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            activeOpacity={0.9}
+          >
+            <MaterialIcons name="logout" size={20} color="#FFFFFF" />
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
 
-      {/* Edit Profile Modal */}
-      <Modal visible={editModalVisible} transparent animationType="slide">
+      {/* Edit Name Modal */}
+      <Modal visible={editNameModalVisible} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalHeader}>Edit Profile</Text>
-            <AppInput
-              placeholder="Name"
-              value={name}
-              onChangeText={setName}
-            />
-            <AppInput
-              placeholder="Phone Number"
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
-              keyboardType="phone-pad"
-            />
-            <View style={{ marginTop: 12 }}>
-              <AppButton
-                text="Save"
-                variant="primary"
-                onPress={updateProfile}
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalHeaderText, { color: theme.colors.primary }]}>Edit Name</Text>
+              <TouchableOpacity onPress={() => setEditNameModalVisible(false)}>
+                <MaterialIcons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: theme.colors.secondary }]}>Full Name</Text>
+              <AppInput
+                placeholder="Enter your name"
+                value={name}
+                onChangeText={setName}
               />
-              <View style={{ marginVertical: 6 }} />
+            </View>
+            
+            <View style={styles.modalActions}>
               <AppButton
-                text="Cancel"
-                variant="secondary"
-                onPress={() => setEditModalVisible(false)}
+                text="Save Changes"
+                variant="primary"
+                onPress={updateName}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Phone Number Modal */}
+      <Modal visible={editPhoneModalVisible} transparent animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalHeaderText, { color: theme.colors.primary }]}>Edit Phone Number</Text>
+              <TouchableOpacity onPress={() => setEditPhoneModalVisible(false)}>
+                <MaterialIcons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: theme.colors.secondary }]}>Phone Number</Text>
+              <AppInput
+                placeholder="Enter phone number"
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                keyboardType="phone-pad"
+              />
+            </View>
+            
+            <View style={styles.modalActions}>
+              <AppButton
+                text="Save Changes"
+                variant="primary"
+                onPress={updatePhoneNumber}
               />
             </View>
           </View>
@@ -223,30 +388,38 @@ const Profile = () => {
       <Modal visible={passwordModalVisible} transparent animationType="fade">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalHeader}>Change Password</Text>
-            <AppInput
-              placeholder="Old Password"
-              value={oldPassword}
-              onChangeText={setOldPassword}
-              secureTextEntry
-            />
-            <AppInput
-              placeholder="New Password"
-              value={newPassword}
-              onChangeText={setNewPassword}
-              secureTextEntry
-            />
-            <View style={{ marginTop: 12 }}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalHeaderText, { color: theme.colors.primary }]}>Change Password</Text>
+              <TouchableOpacity onPress={() => setPasswordModalVisible(false)}>
+                <MaterialIcons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: theme.colors.secondary }]}>Current Password</Text>
+              <AppInput
+                placeholder="Enter current password"
+                value={oldPassword}
+                onChangeText={setOldPassword}
+                secureTextEntry
+              />
+            </View>
+            
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: theme.colors.secondary }]}>New Password</Text>
+              <AppInput
+                placeholder="Enter new password"
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry
+              />
+            </View>
+            
+            <View style={styles.modalActions}>
               <AppButton
                 text="Update Password"
                 variant="primary"
                 onPress={changePassword}
-              />
-              <View style={{ marginVertical: 6 }} />
-              <AppButton
-                text="Cancel"
-                variant="secondary"
-                onPress={() => setPasswordModalVisible(false)}
               />
             </View>
           </View>
@@ -259,7 +432,7 @@ const Profile = () => {
         onSubmit={handleModalSubmit}
         initialAddress={selectedAddress}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -268,69 +441,208 @@ export default Profile;
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#f6f7fb",
+    backgroundColor: "#f8fafc",
+  },
+  headerContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+    backgroundColor: "#FFFFFF",
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
   },
   scrollContainer: {
-    flexGrow: 1,
+    paddingBottom: 24,
+  },
+  profileHeader: {
+    paddingHorizontal: 20,
     paddingVertical: 24,
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  avatarContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  avatarText: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+  },
+  profileName: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#1E293B",
+    marginBottom: 4,
+  },
+  profileEmail: {
+    fontSize: 14,
+    color: "#64748B",
+  },
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
+    marginTop: 4,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "600",
   },
   container: {
+    marginTop: 12,
     marginHorizontal: 16,
-    padding: 24,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    elevation: 4,
+    padding: 20,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
   },
-  header: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#2C3E50",
-    marginBottom: 20,
-    textAlign: "center",
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 16,
+  },
+  profileSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
   },
   label: {
     fontSize: 15,
-    color: "#2C3E50",
-    marginTop: 12,
-    fontWeight: "bold",
+    fontWeight: "500",
+  },
+  valueContainer: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   value: {
-    fontSize: 16,
-    color: "#34495E",
-    marginBottom: 8,
+    fontSize: 14,
+    color: "#64748B",
+    marginRight: 8,
   },
-  divider: {
-    marginVertical: 20,
-    borderBottomColor: "#e0e0e0",
-    borderBottomWidth: 1,
+  rfidButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  rfidButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 12,
+  },
+  rfidStatusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  rfidStatusText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#334155",
+    marginLeft: 12,
+  },
+  logoutWrapper: {
+    padding: 16,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
+  logoutButton: {
+    backgroundColor: "#EF4444",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 14,
+    borderRadius: 30,
+    height: 48,
+    ...Platform.select({
+      android: {
+        elevation: 4,
+      },
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+      },
+    }),
+  },
+  logoutText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 16,
+    marginLeft: 8,
+    letterSpacing: 0.6,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.2)",
+    backgroundColor: "rgba(15, 23, 42, 0.3)",
     justifyContent: "center",
     padding: 20,
   },
   modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 20,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 24,
     elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
   },
   modalHeader: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#2C3E50",
-    marginBottom: 16,
-    textAlign: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 24,
   },
-  logoutWrapper: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderColor: "#eee",
-    backgroundColor: "#fff",
+  modalHeaderText: {
+    fontSize: 20,
+    fontWeight: "700",
   },
-  logoutButton: {
-    backgroundColor: "#e74c3c",
-    borderRadius: 10,
+  inputGroup: {
+    marginBottom: 18,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    marginBottom: 8,
+  },
+  modalActions: {
+    marginTop: 12,
   },
 });
