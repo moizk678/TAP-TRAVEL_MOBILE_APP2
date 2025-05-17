@@ -325,15 +325,18 @@ const Ticket = () => {
       <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
       
       <View style={styles.container}>
-        {/* Header Section */}
-        <Animatable.View animation="fadeIn" duration={800} style={styles.headerSection}>
-          <View style={styles.headerTextContainer}>
-            <Text style={[styles.headerTitle, { color: theme.colors.primary }]}>My Tickets</Text>
-            <Text style={styles.headerSubtitle}>View and manage your bookings</Text>
-          </View>
-          
-          <View style={[styles.headerIconContainer, { backgroundColor: `${theme.colors.primary}15` }]}>
-            <MaterialIcons name="receipt-long" size={26} color={theme.colors.primary} />
+        {/* Banner Section */}
+        <Animatable.View animation="fadeIn" duration={800}>
+          <View style={[styles.bannerContainer, { backgroundColor: "#E8E8F0" }]}>
+            <View style={styles.bannerTextContainer}>
+              <Text style={[styles.bannerTitle, { color: "#1E293B" }]}>My Tickets</Text>
+              <Text style={[styles.bannerSubtitle, { color: "#64748B" }]}>
+                View and manage your bookings
+              </Text>
+            </View>
+            <View style={[styles.busIconContainer, { backgroundColor: "rgba(41, 41, 102, 0.1)" }]}>
+              <MaterialIcons name="receipt-long" size={32} color={theme.colors.primary} />
+            </View>
           </View>
         </Animatable.View>
 
@@ -435,31 +438,38 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
-  headerSection: {
+  bannerContainer: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 10,
-    marginBottom: 16,
-    paddingHorizontal: 8,
+    alignItems: "center",
+    padding: 16,
+    marginHorizontal: 12,
+    marginTop: 12,
+    marginBottom: 6,
+    borderRadius: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    height: 80,
   },
-  headerTextContainer: {
+  bannerTextContainer: {
     flex: 1,
+    paddingLeft: 8,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: "700",
+  bannerTitle: {
+    fontSize: 19,
+    fontWeight: "bold",
     marginBottom: 4,
   },
-  headerSubtitle: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#64748B",
+  bannerSubtitle: {
+    fontSize: 13,
   },
-  headerIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  busIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -485,17 +495,16 @@ const styles = StyleSheet.create({
       },
     }),
   },
-customTabButton: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "center",
-  paddingVertical: 10,
-  paddingHorizontal: 10, // increased for breathing room
-  borderRadius: 10,
-  marginHorizontal: 3,
-  minWidth: 100, // ensure enough space for "Cancelled"
-},
-
+  customTabButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    marginHorizontal: 3,
+    minWidth: 100,
+  },
   activeTab: {
     ...Platform.select({
       ios: {

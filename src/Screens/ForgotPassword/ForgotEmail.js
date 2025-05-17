@@ -4,26 +4,51 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StatusBar,
+  SafeAreaView,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import * as Animatable from "react-native-animatable";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import AppInput from "../../Components/AppInput";
+import * as Animatable from "react-native-animatable";
 import Toast from "react-native-toast-message";
 import apiClient from "../../api/apiClient";
 import AppButton from "../../Components/Button";
+import AppInput from "../../Components/AppInput";
 import { isValidEmail } from "../../utils/isValidEmail";
+import { useTheme } from "../../theme/theme";
 
 const ForgotEmail = ({ navigation }) => {
+  const { theme } = useTheme();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleInputChange = (value) => {
+    setEmail(value);
+    if (error) setError("");
+  };
+
+  const validateEmail = () => {
+    if (!email.trim()) {
+      setError("Email is required");
+      return false;
+    } else if (!isValidEmail(email)) {
+      setError("Please enter a valid email address");
+      return false;
+    }
+    setError("");
+    return true;
+  };
 
   const handleSendOtp = async () => {
-    if (!isValidEmail(email)) {
-      Toast.show({ type: "error", text1: "Please enter a valid email" });
+    if (!validateEmail()) {
+      Toast.show({ 
+        type: "error", 
+        text1: "Validation Error",
+        text2: "Please enter a valid email"
+      });
       return;
     }
 
@@ -34,136 +59,177 @@ const ForgotEmail = ({ navigation }) => {
       });
 
       if (response?.status === 200) {
-        Toast.show({ type: "success", text1: response?.data?.message });
+        Toast.show({ 
+          type: "success", 
+          text1: "OTP Sent Successfully",
+          text2: response?.data?.message 
+        });
         navigation.navigate("ForgotOtp", { email });
       } else {
         Toast.show({
           type: "error",
-          text1: response?.data?.message || "Failed to send OTP",
+          text1: "Request Failed",
+          text2: response?.data?.message || "Failed to send OTP",
         });
       }
     } catch (error) {
-      Toast.show({ type: "error", text1: error?.message || "Server error" });
+      Toast.show({ 
+        type: "error", 
+        text1: "Server Error",
+        text2: error?.message || "Something went wrong" 
+      });
     }
     setIsLoading(false);
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <LinearGradient
-          colors={["#4c669f", "#3b5998", "#192f6a"]}
-          style={styles.topSection}
+    <SafeAreaView style={styles.root}>
+      <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
+      
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
         >
-          <Animatable.View animation="fadeInDown" duration={800}>
-            <MaterialIcons
-              name="location-on"
-              size={64}
-              color="white"
-              style={{ marginBottom: 10 }}
-            />
-            <Text style={styles.appName}>Tap & Travel</Text>
+          {/* Header Section */}
+          <Animatable.View animation="fadeInDown" duration={800} delay={200}>
+            <View style={styles.headerSection}>
+                <MaterialIcons
+                  name="directions-bus"
+                  size={60}
+                  color={theme.colors.primary}
+                />
+              <Text style={[styles.appName, { color: theme.colors.primary }]}>Tap & Travel</Text>
+              <Text style={styles.subtitle}>Your journey starts here</Text>
+            </View>
           </Animatable.View>
-        </LinearGradient>
 
-        <Animatable.View
-          animation="fadeInUp"
-          duration={800}
-          delay={200}
-          style={styles.bottomSection}
-        >
-          <Text style={styles.welcomeText}>Forgot Password</Text>
-          <Text style={styles.subtitle}>
-            Enter your registered email to receive an OTP.
-          </Text>
+          {/* Forgot Password Form Card */}
+          <Animatable.View
+            animation="fadeInUp"
+            duration={800}
+            delay={300}
+            style={styles.formCard}
+          >
+            {/* Form Header */}
+            <View style={styles.formHeader}>
+              <Text style={styles.welcomeText}>Forgot Password</Text>
+              <Text style={styles.formSubtitle}>Enter your registered email to receive an OTP</Text>
+            </View>
 
-          <AppInput
-            placeholder="Enter your email"
-            value={email}
-            onChangeText={setEmail}
-          />
+            {/* Login Link */}
+            <View style={styles.loginRow}>
+              <Text style={styles.loginText}>Remember your password? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+                <Text style={[styles.loginNow, { color: theme.colors.primary }]}>
+                  Sign In
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-          <View style={styles.loginRedirectRow}>
-            <Text style={styles.grayText}>Remember your password? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-              <Text style={styles.loginText}>Login</Text>
-            </TouchableOpacity>
-          </View>
+            {/* Email Input */}
+            <AppInput
+              placeholder="Enter your email"
+              value={email}
+              onChangeText={handleInputChange}
+              onBlur={validateEmail}
+              error={error}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
 
-          <View style={{ marginVertical: 16 }} />
-          <AppButton
-            text="Send OTP"
-            onPress={handleSendOtp}
-            disabled={!isValidEmail(email)}
-            variant="primary"
-            isLoading={isLoading}
-          />
-        </Animatable.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {/* Send OTP Button */}
+            <AppButton
+              text="Send OTP"
+              onPress={handleSendOtp}
+              variant="primary"
+              isLoading={isLoading}
+              style={styles.sendOtpButton}
+            />
+          </Animatable.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+  },
   container: {
     flex: 1,
-    backgroundColor: "#292966",
   },
-  topSection: {
-    flex: 1.2,
-    justifyContent: "center",
+  scrollContainer: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+  },
+  headerSection: {
     alignItems: "center",
-    paddingVertical: 40,
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
+    paddingVertical: 1,
+    paddingBottom: 5,
   },
   appName: {
-    color: "white",
-    fontSize: 28,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  bottomSection: {
-    flex: 2,
-    backgroundColor: "white",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingHorizontal: 24,
-    paddingTop: 36,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 10,
-  },
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#292966",
+    fontSize: 32,
+    fontWeight: "700",
     marginBottom: 8,
   },
   subtitle: {
-    color: "#999",
-    fontSize: 14,
-    marginBottom: 20,
+    fontSize: 16,
+    color: "#64748B",
+    fontWeight: "400",
   },
-  loginRedirectRow: {
-    flexDirection: "row",
-    alignItems: "center",
+  formCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 24,
     marginTop: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  grayText: {
-    color: "#999",
-    fontSize: 14,
+  formHeader: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  welcomeText: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#1E293B",
+    marginBottom: 8,
+  },
+  formSubtitle: {
+    fontSize: 16,
+    color: "#64748B",
+    textAlign: "center",
+  },
+  loginRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
   },
   loginText: {
-    color: "#ff4d4d",
-    fontWeight: "bold",
     fontSize: 14,
+    color: "#64748B",
   },
+  loginNow: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  sendOtpButton: {
+    marginTop: 16,
+    height: 56,
+  }
 });
 
 export default ForgotEmail;

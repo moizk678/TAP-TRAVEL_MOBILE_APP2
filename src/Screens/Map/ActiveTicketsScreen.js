@@ -310,12 +310,12 @@ const styles = StyleSheet.create({
     paddingLeft: 8,
   },
   bannerTitle: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: "bold",
     marginBottom: 4,
   },
   bannerSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
   },
   busIconContainer: {
     width: 60,

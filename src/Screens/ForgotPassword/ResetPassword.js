@@ -7,8 +7,9 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  StatusBar,
+  SafeAreaView,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import * as Animatable from "react-native-animatable";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import Feather from "react-native-vector-icons/Feather";
@@ -16,6 +17,7 @@ import AppButton from "../../Components/Button";
 import AppInput from "../../Components/AppInput";
 import Toast from "react-native-toast-message";
 import apiClient from "../../api/apiClient";
+import { useTheme } from "../../theme/theme";
 
 const passwordRules = [
   { label: "Minimum 8 characters", test: (val) => val.length >= 8 },
@@ -29,6 +31,8 @@ const passwordRules = [
 
 const ResetPassword = ({ navigation, route }) => {
   const { email, secret_key } = route?.params || {};
+  const { theme } = useTheme();
+  
   const [state, setState] = useState({
     password: "",
     confirmPassword: "",
@@ -185,198 +189,198 @@ const ResetPassword = ({ navigation, route }) => {
     state.confirmPassword.length > 0;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <LinearGradient
-          colors={["#4c669f", "#3b5998", "#192f6a"]}
-          style={styles.topSection}
+    <SafeAreaView style={styles.root}>
+      <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
+      
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
         >
-          <Animatable.View animation="fadeInDown" duration={800}>
-            <MaterialIcons name="location-on" size={64} color="white" />
-            <Text style={styles.appName}>Tap & Travel</Text>
-          </Animatable.View>
-        </LinearGradient>
-
-        <Animatable.View
-          animation="fadeInUp"
-          duration={800}
-          delay={200}
-          style={styles.bottomSection}
-        >
-          <Text style={styles.title}>Reset Your Password</Text>
-          
-          {errors.general ? (
-            <View style={styles.generalErrorContainer}>
-              <Text style={styles.generalErrorText}>{errors.general}</Text>
+          {/* Header Section */}
+          <Animatable.View animation="fadeInDown" duration={800} delay={200}>
+            <View style={styles.headerSection}>
+              <MaterialIcons
+                name="directions-bus"
+                size={60}
+                color={theme.colors.primary}
+              />
+              <Text style={[styles.appName, { color: theme.colors.primary }]}>Tap & Travel</Text>
+              <Text style={styles.subtitle}>Reset your password</Text>
             </View>
-          ) : null}
+          </Animatable.View>
 
-          <AppInput
-            placeholder="New Password"
-            secureTextEntry={!state.isPasswordVisible}
-            value={state.password}
-            onChangeText={(password) => updateState({ password })}
-            rightIcon={state.isPasswordVisible ? "eye" : "eye-off"}
-            onRightIconPress={() => togglePasswordVisibility('password')}
-            error={errors.password}
-          />
+          {/* Form Card */}
+          <Animatable.View
+            animation="fadeInUp"
+            duration={800}
+            delay={300}
+            style={styles.formCard}
+          >
+            {/* Form Header */}
+            <View style={styles.formHeader}>
+              <Text style={styles.welcomeText}>Create New Password</Text>
+              <Text style={styles.formSubtitle}>Please set a secure password for your account</Text>
+            </View>
 
-          <AppInput
-            placeholder="Confirm Password"
-            secureTextEntry={!state.isConfirmPasswordVisible}
-            value={state.confirmPassword}
-            onChangeText={(confirmPassword) => updateState({ confirmPassword })}
-            rightIcon={state.isConfirmPasswordVisible ? "eye" : "eye-off"}
-            onRightIconPress={() => togglePasswordVisibility('confirmPassword')}
-            error={errors.confirmPassword}
-          />
-
-          <View style={styles.rulesContainer}>
-            <Text style={styles.rulesTitle}>Password must have:</Text>
-            {validationResults.rulesStatus.map((rule, index) => (
-              <View key={index} style={styles.ruleRow}>
-                <Feather 
-                  name={rule.valid ? "check-circle" : "circle"} 
-                  size={16} 
-                  color={rule.valid ? "green" : "#888"} 
-                  style={styles.ruleIcon}
-                />
-                <Text
-                  style={[
-                    styles.ruleText, 
-                    { color: rule.valid ? "green" : "#888" }
-                  ]}
-                >
-                  {rule.label}
-                </Text>
+            {/* General Error Message */}
+            {errors.general ? (
+              <View style={styles.generalErrorContainer}>
+                <Text style={styles.generalErrorText}>{errors.general}</Text>
               </View>
-            ))}
-            {state.confirmPassword.length > 0 && (
-              <View style={styles.ruleRow}>
-                <Feather 
-                  name={validationResults.passwordsMatch ? "check-circle" : "circle"} 
-                  size={16} 
-                  color={validationResults.passwordsMatch ? "green" : "#888"} 
-                  style={styles.ruleIcon}
-                />
-                <Text
-                  style={[
-                    styles.ruleText,
-                    { color: validationResults.passwordsMatch ? "green" : "#888" }
-                  ]}
-                >
-                  Passwords match
-                </Text>
-              </View>
-            )}
-          </View>
+            ) : null}
 
-          <AppButton
-            text="Reset Password"
-            onPress={handleResetPassword}
-            variant="primary"
-            isLoading={state.isLoading}
-            disabled={!isFormValid}
-          />
+            {/* Password Input */}
+            <AppInput
+              placeholder="New Password"
+              secureTextEntry={!state.isPasswordVisible}
+              value={state.password}
+              onChangeText={(password) => updateState({ password })}
+              rightIcon={state.isPasswordVisible ? "eye" : "eye-off"}
+              onRightIconPress={() => togglePasswordVisibility('password')}
+              error={errors.password}
+            />
 
-          <View style={styles.loginLinkContainer}>
-            <Text style={styles.loginText}>Remember your password? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-              <Text style={styles.loginLink}>Login</Text>
-            </TouchableOpacity>
-          </View>
-        </Animatable.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {/* Confirm Password Input */}
+            <AppInput
+              placeholder="Confirm Password"
+              secureTextEntry={!state.isConfirmPasswordVisible}
+              value={state.confirmPassword}
+              onChangeText={(confirmPassword) => updateState({ confirmPassword })}
+              rightIcon={state.isConfirmPasswordVisible ? "eye" : "eye-off"}
+              onRightIconPress={() => togglePasswordVisibility('confirmPassword')}
+              error={errors.confirmPassword}
+            />
+
+            {/* Password Requirements */}
+            <View style={styles.rulesContainer}>
+              <Text style={styles.rulesTitle}>Password must have:</Text>
+              {validationResults.rulesStatus.map((rule, index) => (
+                <View key={index} style={styles.ruleRow}>
+                  <Feather 
+                    name={rule.valid ? "check-circle" : "circle"} 
+                    size={16} 
+                    color={rule.valid ? "green" : "#888"} 
+                    style={styles.ruleIcon}
+                  />
+                  <Text
+                    style={[
+                      styles.ruleText, 
+                      { color: rule.valid ? "green" : "#888" }
+                    ]}
+                  >
+                    {rule.label}
+                  </Text>
+                </View>
+              ))}
+              {state.confirmPassword.length > 0 && (
+                <View style={styles.ruleRow}>
+                  <Feather 
+                    name={validationResults.passwordsMatch ? "check-circle" : "circle"} 
+                    size={16} 
+                    color={validationResults.passwordsMatch ? "green" : "#888"} 
+                    style={styles.ruleIcon}
+                  />
+                  <Text
+                    style={[
+                      styles.ruleText,
+                      { color: validationResults.passwordsMatch ? "green" : "#888" }
+                    ]}
+                  >
+                    Passwords match
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Reset Button */}
+            <AppButton
+              text="Reset Password"
+              onPress={handleResetPassword}
+              variant="primary"
+              isLoading={state.isLoading}
+              disabled={!isFormValid}
+              style={styles.resetButton}
+            />
+
+            {/* Login Link */}
+            <View style={styles.loginLinkContainer}>
+              <Text style={styles.loginText}>Remember your password? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+                <Text style={[styles.loginLink, { color: theme.colors.primary }]}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
+          </Animatable.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 export default ResetPassword;
 
+
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+  },
   container: {
     flex: 1,
-    backgroundColor: "#292966",
   },
-  topSection: {
-    flex: 1.2,
-    justifyContent: "center",
+  scrollContainer: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+  },
+  headerSection: {
     alignItems: "center",
-    paddingVertical: 40,
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
+    paddingVertical: 10,
+    paddingBottom: 5,
   },
   appName: {
-    color: "white",
-    fontSize: 28,
-    fontWeight: "bold",
-    marginTop: 10,
-    textAlign: "center",
-  },
-  bottomSection: {
-    flex: 2,
-    backgroundColor: "white",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingHorizontal: 24,
-    paddingTop: 36,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 10,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#292966",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  rulesContainer: {
-    marginBottom: 20,
-    padding: 12,
-    backgroundColor: "#f8f8f8",
-    borderRadius: 8,
-  },
-  rulesTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#444",
+    fontSize: 32,
+    fontWeight: "700",
     marginBottom: 8,
   },
-  ruleRow: {
-    flexDirection: "row",
+  subtitle: {
+    fontSize: 16,
+    color: "#64748B",
+    fontWeight: "400",
+  },
+  formCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 24,
+    marginTop: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  formHeader: {
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: 24,
   },
-  ruleIcon: {
-    marginRight: 8,
+  welcomeText: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#1E293B",
+    marginBottom: 8,
   },
-  ruleText: {
-    fontSize: 14,
-  },
-  loginLinkContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 20,
-  },
-  loginText: {
-    color: "#999",
-    fontSize: 14,
-  },
-  loginLink: {
-    color: "#ff4d4d",
-    fontWeight: "bold",
-    fontSize: 14,
+  formSubtitle: {
+    fontSize: 16,
+    color: "#64748B",
+    textAlign: "center",
   },
   generalErrorContainer: {
     backgroundColor: "#ffeeee",
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: "#ffcccc",
@@ -384,5 +388,45 @@ const styles = StyleSheet.create({
   generalErrorText: {
     color: "#d32f2f",
     fontSize: 14,
+  },
+  rulesContainer: {
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+  },
+  rulesTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#444",
+    marginBottom: 12,
+  },
+  ruleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  ruleIcon: {
+    marginRight: 8,
+  },
+  ruleText: {
+    fontSize: 14,
+  },
+  resetButton: {
+    marginBottom: 24,
+    height: 56,
+  },
+  loginLinkContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    padding: 8,
+  },
+  loginText: {
+    fontSize: 14,
+    color: "#64748B",
+  },
+  loginLink: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

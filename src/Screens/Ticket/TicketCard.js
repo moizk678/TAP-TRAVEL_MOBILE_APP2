@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   fare: {
     fontSize: 22,
     fontWeight: "bold",
-    color: "#ff3f91",
+    color: "#41E0A8",
     marginTop: 4,
   },
   passengerSection: {

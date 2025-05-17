@@ -7,10 +7,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StatusBar,
+  SafeAreaView,
 } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import * as Animatable from "react-native-animatable";
-import { LinearGradient } from "expo-linear-gradient";
 
 import validator from "../../utils/validation";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -20,6 +21,7 @@ import Toast from "react-native-toast-message";
 import AppButton from "../../Components/Button";
 import AppInput from "../../Components/AppInput";
 import { registerExpoPushToken } from "../../utils/notificationHelper";
+import { useTheme } from "../../theme/theme";
 
 export const loginUser = async (userData) => {
   try {
@@ -49,6 +51,7 @@ export const loginUser = async (userData) => {
 
 const Login = ({ navigation }) => {
   const { login } = useContext(AuthContext);
+  const { theme } = useTheme();
   const [state, setState] = useState({
     isLoading: false,
     email: "",
@@ -174,129 +177,262 @@ const Login = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <LinearGradient
-          colors={["#4c669f", "#3b5998", "#192f6a"]}
-          style={styles.topSection}
+    <SafeAreaView style={styles.root}>
+      <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
+      
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
         >
+          {/* Header Section */}
           <Animatable.View animation="fadeInDown" duration={800} delay={200}>
-            <MaterialIcons
-              name="location-on"
-              size={64}
-              color="white"
-              style={{ marginBottom: 10 }}
-            />
-            <Text style={styles.appName}>Tap & Travel</Text>
+            <View style={styles.headerSection}>
+                <MaterialIcons
+                  name="directions-bus"
+                  size={60}
+                  color={theme.colors.primary}
+                />
+              <Text style={[styles.appName, { color: theme.colors.primary }]}>Tap & Travel</Text>
+              <Text style={styles.subtitle}>Your journey starts here</Text>
+            </View>
           </Animatable.View>
-        </LinearGradient>
 
-        <Animatable.View
-          animation="fadeInUp"
-          duration={800}
-          delay={300}
-          style={styles.bottomSection}
-        >
-          <Text style={styles.welcomeText}>Welcome 👋</Text>
-          <View style={styles.registerRow}>
-            <Text style={styles.registerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate("Signup")}>
-              <Text style={styles.registerNow}>Register now</Text>
+          {/* Login Form Card */}
+          <Animatable.View
+            animation="fadeInUp"
+            duration={800}
+            delay={300}
+            style={styles.formCard}
+          >
+            {/* Form Header */}
+            <View style={styles.formHeader}>
+              <Text style={styles.welcomeText}>Welcome!</Text>
+              <Text style={styles.formSubtitle}>Sign in to continue your journey</Text>
+            </View>
+
+            {/* Registration Link */}
+            <View style={styles.registerRow}>
+              <Text style={styles.registerText}>Don't have an account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate("Signup")}>
+                <Text style={[styles.registerNow, { color: theme.colors.primary }]}>
+                  Create Account
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Email Input */}
+            <AppInput
+              placeholder="Enter your email"
+              value={email}
+              onChangeText={(value) => handleInputChange("email", value)}
+              onBlur={() => validateField("email", email)}
+              error={errors.email}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
+            {/* Password Input */}
+            <AppInput
+              placeholder="Enter your password"
+              value={password}
+              secureTextEntry={isSecure}
+              onChangeText={(value) => handleInputChange("password", value)}
+              onBlur={() => validateField("password", password)}
+              error={errors.password}
+              rightIcon={isSecure ? "eye-off" : "eye"}
+              onRightIconPress={togglePasswordVisibility}
+            />
+
+            {/* Forgot Password */}
+            <TouchableOpacity 
+              onPress={() => navigation.navigate("ForgotEmail")}
+              style={styles.forgotPasswordContainer}
+            >
+              <Text style={[styles.forgotPassword, { color: theme.colors.primary }]}>
+                Forgot Password?
+              </Text>
             </TouchableOpacity>
-          </View>
 
-          <AppInput
-            placeholder="Enter your email"
-            value={email}
-            onChangeText={(value) => handleInputChange("email", value)}
-            onBlur={() => validateField("email", email)}
-            error={errors.email}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          <AppInput
-            placeholder="Enter your password"
-            value={password}
-            secureTextEntry={isSecure}
-            onChangeText={(value) => handleInputChange("password", value)}
-            onBlur={() => validateField("password", password)}
-            error={errors.password}
-            rightIcon={isSecure ? "eye-off" : "eye"}
-            onRightIconPress={togglePasswordVisibility}
-          />
-
-          <TouchableOpacity onPress={() => navigation.navigate("ForgotEmail")}>
-            <Text style={[styles.registerNow, { textAlign: "right", marginTop: 8 }]}>
-              Forgot Password?
-            </Text>
-          </TouchableOpacity>
-
-          <View style={{ marginVertical: 16 }} />
-          <AppButton
-            text="Login"
-            onPress={onLogin}
-            variant="primary"
-            isLoading={isLoading}
-          />
-        </Animatable.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {/* Login Button */}
+            <AppButton
+              text="Sign In"
+              onPress={onLogin}
+              variant="primary"
+              isLoading={isLoading}
+              style={styles.loginButton}
+            />
+          </Animatable.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+  },
   container: {
     flex: 1,
-    backgroundColor: "#292966",
   },
-  topSection: {
-    flex: 1.2,
-    justifyContent: "center",
+  scrollContainer: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+  },
+  headerSection: {
     alignItems: "center",
-    paddingVertical: 40,
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
+    paddingVertical: 1,
+    paddingBottom: 5,
   },
+logoContainer: {
+  width: 70,
+  height: 70,
+  borderRadius: 35,
+  alignItems: "center",
+  justifyContent: "center",
+  marginBottom: 16,
+  elevation: 2,
+},
+
   appName: {
-    color: "white",
-    fontSize: 28,
-    fontWeight: "bold",
-    textAlign: "center",
+    fontSize: 32,
+    fontWeight: "700",
+    marginBottom: 8,
   },
-  bottomSection: {
-    flex: 2,
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingHorizontal: 24,
-    paddingTop: 36,
+  subtitle: {
+    fontSize: 16,
+    color: "#64748B",
+    fontWeight: "400",
+  },
+  formCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 24,
+    marginTop: 10,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  formHeader: {
+    alignItems: "center",
+    marginBottom: 24,
   },
   welcomeText: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#292966",
-    marginBottom: 12,
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#1E293B",
+    marginBottom: 8,
+  },
+  formSubtitle: {
+    fontSize: 16,
+    color: "#64748B",
+    textAlign: "center",
   },
   registerRow: {
     flexDirection: "row",
-    marginBottom: 16,
+    justifyContent: "center",
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
   },
   registerText: {
-    color: "#777",
     fontSize: 14,
+    color: "#64748B",
   },
   registerNow: {
-    color: "#ff4d4d",
-    fontWeight: "bold",
     fontSize: 14,
+    fontWeight: "600",
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 16,
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
+    height: 56,
+    fontSize: 16,
+    color: "#1E293B",
+    backgroundColor: "transparent",
+  },
+  errorText: {
+    color: "#EF4444",
+    fontSize: 12,
+    marginTop: 6,
+    marginLeft: 4,
+  },
+  forgotPasswordContainer: {
+    alignItems: "flex-end",
+    marginBottom: 24,
+    marginTop: 8,
+  },
+  forgotPassword: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  loginButton: {
+    marginBottom: 32,
+    height: 56,
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#E2E8F0",
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    fontSize: 14,
+    color: "#64748B",
+  },
+  socialContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  socialButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    borderWidth: 1.5,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+  },
+  socialText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "500",
   },
 });
 

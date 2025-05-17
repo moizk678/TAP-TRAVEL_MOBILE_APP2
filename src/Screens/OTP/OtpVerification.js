@@ -8,8 +8,9 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  StatusBar,
+  SafeAreaView,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import * as Animatable from "react-native-animatable";
 import AppButton from "../../Components/Button";
 import { useNavigation } from "@react-navigation/native";
@@ -17,11 +18,13 @@ import apiClient from "../../api/apiClient";
 import Toast from "react-native-toast-message";
 import { AuthContext } from "../../context/AuthContext";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import { useTheme } from "../../theme/theme";
 
 const OtpVerification = ({ route }) => {
   const { login } = useContext(AuthContext);
   const navigation = useNavigation();
   const { email } = route.params;
+  const { theme } = useTheme();
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
@@ -60,7 +63,11 @@ const OtpVerification = ({ route }) => {
   const onVerifyOtp = async () => {
     const code = otp.join("");
     if (code.length !== 6) {
-      Toast.show({ type: "error", text1: "Enter 6-digit OTP!" });
+      Toast.show({ 
+        type: "error", 
+        text1: "Incomplete OTP",
+        text2: "Please enter the complete 6-digit OTP"
+      });
       return;
     }
 
@@ -72,11 +79,19 @@ const OtpVerification = ({ route }) => {
       });
 
       if (response.data) {
-        Toast.show({ type: "success", text1: response?.data?.message });
+        Toast.show({ 
+          type: "success", 
+          text1: "Verification Successful",
+          text2: response?.data?.message || "Your account has been verified successfully"
+        });
         await login(response?.data?.token);
       }
     } catch (error) {
-      Toast.show({ type: "error", text1: "OTP Verification Failed" });
+      Toast.show({ 
+        type: "error", 
+        text1: "Verification Failed",
+        text2: error?.response?.data?.message || "Invalid or expired OTP" 
+      });
     } finally {
       setIsLoading(false);
     }
@@ -87,171 +102,234 @@ const OtpVerification = ({ route }) => {
 
     try {
       await apiClient.post("/user/resend-otp", { email });
-      Toast.show({ type: "success", text1: "OTP Resent!" });
+      Toast.show({ 
+        type: "success", 
+        text1: "OTP Resent",
+        text2: "A new OTP has been sent to your email"
+      });
       setResendTimer(30);
     } catch (error) {
-      Toast.show({ type: "error", text1: "Failed to resend OTP!" });
+      Toast.show({ 
+        type: "error", 
+        text1: "Failed to Resend OTP",
+        text2: error?.response?.data?.message || "Please try again later"
+      });
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <LinearGradient
-          colors={["#4c669f", "#3b5998", "#192f6a"]}
-          style={styles.logoContainer}
+    <SafeAreaView style={styles.root}>
+      <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
+      
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
         >
-          <Animatable.View animation="fadeInDown" duration={800}>
-            <MaterialIcons name="location-on" size={64} color="white" />
-            <Text style={styles.appName}>Tap & Travel</Text>
-          </Animatable.View>
-        </LinearGradient>
-
-        <Animatable.View
-          animation="fadeInUp"
-          duration={800}
-          delay={200}
-          style={styles.bottomSection}
-        >
-          <Text style={styles.title}>OTP Verification</Text>
-          <Text style={styles.subtitle}>Enter the OTP sent to {email}</Text>
-
-          <View style={styles.otpContainer}>
-            {otp.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={(ref) => (inputRefs.current[index] = ref)}
-                style={styles.otpBox}
-                keyboardType="numeric"
-                maxLength={1}
-                value={digit}
-                onChangeText={(value) => handleChange(value, index)}
-                onKeyPress={(e) => handleKeyPress(e, index)}
+          {/* Header Section */}
+          <Animatable.View animation="fadeInDown" duration={800} delay={200}>
+            <View style={styles.headerSection}>
+              <MaterialIcons
+                name="directions-bus"
+                size={60}
+                color={theme.colors.primary}
               />
-            ))}
-          </View>
+              <Text style={[styles.appName, { color: theme.colors.primary }]}>Tap & Travel</Text>
+              <Text style={styles.subtitle}>Verify your account</Text>
+            </View>
+          </Animatable.View>
 
-          <AppButton
-            text="Verify OTP"
-            onPress={onVerifyOtp}
-            isLoading={isLoading}
-            variant="primary"
-          />
+          {/* OTP Form Card */}
+          <Animatable.View
+            animation="fadeInUp"
+            duration={800}
+            delay={300}
+            style={styles.formCard}
+          >
+            {/* Form Header */}
+            <View style={styles.formHeader}>
+              <Text style={styles.welcomeText}>OTP Verification</Text>
+              <Text style={styles.formSubtitle}>
+                Enter the 6-digit code sent to:
+              </Text>
+              <Text style={styles.emailText}>{email}</Text>
+            </View>
 
-          <TouchableOpacity onPress={onResendOtp} disabled={resendTimer > 0}>
-            <Text
-              style={[
-                styles.resendText,
-                resendTimer > 0 && styles.disabledText,
-              ]}
-            >
-              {resendTimer > 0
-                ? `Resend OTP in ${resendTimer}s`
-                : "Resend OTP"}
-            </Text>
-          </TouchableOpacity>
+            {/* OTP Input Boxes */}
+            <View style={styles.otpContainer}>
+              {otp.map((digit, index) => (
+                <TextInput
+                  key={index}
+                  ref={(ref) => (inputRefs.current[index] = ref)}
+                  style={[
+                    styles.otpBox,
+                    { 
+                      borderColor: digit ? theme.colors.primary : "#E2E8F0",
+                      backgroundColor: digit ? "#F0F9FF" : "#F8FAFC" 
+                    }
+                  ]}
+                  keyboardType="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChangeText={(value) => handleChange(value, index)}
+                  onKeyPress={(e) => handleKeyPress(e, index)}
+                />
+              ))}
+            </View>
 
-          <View style={styles.loginRow}>
-            <Text style={styles.registerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-              <Text style={styles.registerNow}>Login</Text>
-            </TouchableOpacity>
-          </View>
-        </Animatable.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {/* Verify Button */}
+            <AppButton
+              text="Verify OTP"
+              onPress={onVerifyOtp}
+              isLoading={isLoading}
+              variant="primary"
+              style={styles.verifyButton}
+            />
+
+            {/* Resend OTP */}
+            <View style={styles.resendContainer}>
+              <Text style={styles.resendText}>Didn't receive the code? </Text>
+              <TouchableOpacity onPress={onResendOtp} disabled={resendTimer > 0}>
+                <Text
+                  style={[
+                    styles.resendAction,
+                    { color: resendTimer > 0 ? "#94A3B8" : theme.colors.primary }
+                  ]}
+                >
+                  {resendTimer > 0
+                    ? `Resend in ${resendTimer}s`
+                    : "Resend OTP"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Login Link */}
+            <View style={styles.loginLinkContainer}>
+              <Text style={styles.loginText}>Already verified? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+                <Text style={[styles.loginLink, { color: theme.colors.primary }]}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
+          </Animatable.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
-export default OtpVerification;
-
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+  },
   container: {
     flex: 1,
-    backgroundColor: "#292966",
   },
-  logoContainer: {
-    flex: 1.2,
-    justifyContent: "center",
+  scrollContainer: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+  },
+  headerSection: {
     alignItems: "center",
-    paddingVertical: 40,
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
+    paddingVertical: 10,
+    paddingBottom: 5,
   },
   appName: {
-    color: "white",
-    fontSize: 28,
-    fontWeight: "bold",
-    marginTop: 10,
-    textAlign: "center",
-  },
-  bottomSection: {
-    flex: 2,
-    backgroundColor: "white",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingHorizontal: 24,
-    paddingTop: 36,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 10,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#292966",
-    marginBottom: 10,
-    textAlign: "center",
+    fontSize: 32,
+    fontWeight: "700",
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: "gray",
+    color: "#64748B",
+    fontWeight: "400",
+  },
+  formCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 24,
+    marginTop: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  formHeader: {
+    alignItems: "center",
     marginBottom: 24,
+  },
+  welcomeText: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#1E293B",
+    marginBottom: 8,
+  },
+  formSubtitle: {
+    fontSize: 16,
+    color: "#64748B",
     textAlign: "center",
+  },
+  emailText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#334155",
+    marginTop: 4,
   },
   otpContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 30,
+    marginBottom: 24,
+    paddingHorizontal: 8,
   },
   otpBox: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 10,
+    borderWidth: 1.5,
+    borderRadius: 16,
     width: 50,
-    height: 55,
+    height: 56,
     textAlign: "center",
-    fontSize: 20,
-    backgroundColor: "#f7f7f7",
-    color: "#292966",
+    fontSize: 22,
     fontWeight: "bold",
+    color: "#1E293B",
   },
-  resendText: {
-    textAlign: "center",
-    fontSize: 16,
-    color: "#007aff",
-    marginTop: 16,
+  verifyButton: {
+    marginBottom: 20,
+    height: 56,
   },
-  disabledText: {
-    color: "gray",
-  },
-  loginRow: {
+  resendContainer: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 24,
+    alignItems: "center",
+    marginBottom: 24,
+    padding: 12,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
   },
-  registerText: {
-    color: "#999",
+  resendText: {
     fontSize: 14,
+    color: "#64748B",
   },
-  registerNow: {
-    color: "#ff4d4d",
-    fontWeight: "bold",
+  resendAction: {
     fontSize: 14,
+    fontWeight: "600",
+  },
+  loginLinkContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    padding: 8,
+  },
+  loginText: {
+    fontSize: 14,
+    color: "#64748B",
+  },
+  loginLink: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
+
+export default OtpVerification;
