@@ -205,14 +205,6 @@ const OtpVerification = ({ route }) => {
                 </Text>
               </TouchableOpacity>
             </View>
-
-            {/* Login Link */}
-            <View style={styles.loginLinkContainer}>
-              <Text style={styles.loginText}>Already verified? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-                <Text style={[styles.loginLink, { color: theme.colors.primary }]}>Sign In</Text>
-              </TouchableOpacity>
-            </View>
           </Animatable.View>
         </ScrollView>
       </KeyboardAvoidingView>

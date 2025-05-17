@@ -45,6 +45,7 @@ const ProfileSection = ({ icon, label, value, onPress }) => {
   );
 };
 
+
 const StatusBadge = ({ status }) => {
   let bgColor = "#E2E8F0";
   let textColor = "#64748B";
@@ -74,8 +75,10 @@ const Profile = () => {
   const [name, setName] = useState("");
   const [user, setUser] = useState(null);
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneNumberError, setPhoneNumberError] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState(null);
@@ -85,6 +88,9 @@ const Profile = () => {
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [validationError, setValidationError] = useState("");
   
   // Animation state for buttons
   const [logoutScale] = useState(new Animated.Value(1));
@@ -109,7 +115,7 @@ const Profile = () => {
         const u = data.user;
         setUser(u);
         setName(u.name);
-        setPhoneNumber(u.phoneNumber);
+        setPhoneNumber(u.phoneNumber || "");
         setEmail(u.email);
       }
     } catch (error) {
@@ -137,42 +143,113 @@ const Profile = () => {
     }
   };
 
+  const validatePhoneNumber = (phone) => {
+    // Validates phone number starting with 03 and exactly 11 digits
+    const phoneRegex = /^03\d{9}$/;
+    if (!phone || phone.trim() === "") {
+      setPhoneNumberError("Phone number is required");
+      return false;
+    }
+    if (!phoneRegex.test(phone)) {
+      setPhoneNumberError("Please enter a valid phone number starting with 03 (11 digits total)");
+      return false;
+    }
+    setPhoneNumberError("");
+    return true;
+  };
+
   const updatePhoneNumber = async () => {
-    if (!phoneNumber) {
-      Toast.show({ type: "info", text1: "Phone Number is required" });
+    // Validate once more before API call
+    if (!validatePhoneNumber(phoneNumber)) {
       return;
     }
+    
+    setIsLoading(true);
     try {
       const token = await AsyncStorage.getItem("token");
       const { sub: userId } = jwtDecode(token);
-      await apiClient.patch(`/user/update-profile`, {
+      
+      const response = await apiClient.patch("/user/update-profile", {
         userId,
-        phoneNumber,
+        phoneNumber: phoneNumber
       });
-      Toast.show({ type: "success", text1: "Phone Number updated successfully" });
+
+      setUser({ ...user, phoneNumber: phoneNumber });
       setEditPhoneModalVisible(false);
+      Toast.show({
+        type: "success",
+        text1: "Success",
+        text2: "Phone number updated successfully",
+      });
     } catch (error) {
-      Toast.show({ type: "error", text1: "Phone Number update failed" });
+      console.error("Phone update error:", error?.response || error);
+
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: error?.response?.data?.message || "Failed to update phone number",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const validatePassword = () => {
+    const current = oldPassword?.trim();
+    const next = newPassword?.trim();
+
+    if (!current || !next) {
+      setValidationError("Please enter both your current and new password.");
+      return false;
+    }
+
+    if (current === next) {
+      setValidationError("New password must be different from the current password.");
+      return false;
+    }
+
+    if (next.length < 8) {
+      setValidationError("New password must be at least 8 characters.");
+      return false;
+    }
+
+    const hasUppercase = /[A-Z]/.test(next);
+    const hasLowercase = /[a-z]/.test(next);
+    const hasNumber = /\d/.test(next);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(next);
+
+    if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecialChar) {
+      setValidationError("Password must include uppercase, lowercase, number, and special character.");
+      return false;
+    }
+
+    // All checks passed
+    setValidationError("");
+    return true;
+  };
+
   const changePassword = async () => {
-    if (!oldPassword || !newPassword) {
-      Toast.show({ type: "info", text1: "Both fields are required" });
+    // Validate password before proceeding
+    if (!validatePassword()) {
       return;
     }
+
     try {
       await apiClient.post(`/user/change-password`, {
         email,
         oldPassword,
         newPassword,
       });
+
       Toast.show({ type: "success", text1: "Password changed successfully" });
       setPasswordModalVisible(false);
       setOldPassword("");
       setNewPassword("");
+      setShowOldPassword(false);
+      setShowNewPassword(false);
+      setValidationError("");
     } catch (error) {
-      Toast.show({ type: "error", text1: "Password change failed" });
+      Toast.show({ type: "error", text1: error?.response?.data?.message || "Password change failed" });
     }
   };
 
@@ -222,6 +299,22 @@ const Profile = () => {
     }).start();
   };
 
+  const resetPasswordModal = () => {
+    setOldPassword("");
+    setNewPassword("");
+    setShowOldPassword(false);
+    setShowNewPassword(false);
+    setValidationError("");
+    setPasswordModalVisible(false);
+  };
+
+  // Function to handle opening the phone edit modal
+  const handlePhoneEditPress = () => {
+    // Reset any error before showing the modal
+    setPhoneNumberError("");
+    setEditPhoneModalVisible(true);
+  };
+
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: "#f8fafc" }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
@@ -257,8 +350,8 @@ const Profile = () => {
           <ProfileSection 
             icon="phone-iphone" 
             label="Phone Number" 
-            value={phoneNumber} 
-            onPress={() => setEditPhoneModalVisible(true)}
+            value={phoneNumber || "Not set"} 
+            onPress={handlePhoneEditPress}
           />
 
           <ProfileSection 
@@ -358,7 +451,10 @@ const Profile = () => {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalHeaderText, { color: theme.colors.primary }]}>Edit Phone Number</Text>
-              <TouchableOpacity onPress={() => setEditPhoneModalVisible(false)}>
+              <TouchableOpacity onPress={() => {
+                setPhoneNumberError("");
+                setEditPhoneModalVisible(false);
+              }}>
                 <MaterialIcons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
@@ -366,11 +462,36 @@ const Profile = () => {
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: theme.colors.secondary }]}>Phone Number</Text>
               <AppInput
-                placeholder="Enter phone number"
+                placeholder="Enter phone number (03-)"
                 value={phoneNumber}
-                onChangeText={setPhoneNumber}
+                onChangeText={(value) => {
+                  // Remove non-digit characters
+                  const digitsOnly = value.replace(/\D/g, "");
+                  
+                  // Ensure it starts with "03" if user is typing
+                  let formattedValue = digitsOnly;
+                  if (digitsOnly.length > 0 && !digitsOnly.startsWith("03") && digitsOnly.length <= 2) {
+                    formattedValue = "03";
+                  } else if (digitsOnly.length > 0 && !digitsOnly.startsWith("03")) {
+                    formattedValue = "03" + digitsOnly.slice(0, 9);
+                  }
+                  
+                  // Limit to 11 digits
+                  formattedValue = formattedValue.substring(0, 11);
+                  
+                  setPhoneNumber(formattedValue);
+                  
+                  // Clear error when typing
+                  if (phoneNumberError) {
+                    setPhoneNumberError("");
+                  }
+                }}
                 keyboardType="phone-pad"
+                error={phoneNumberError}
               />
+              {phoneNumberError ? (
+                <Text style={styles.errorText}>{phoneNumberError}</Text>
+              ) : null}
             </View>
             
             <View style={styles.modalActions}>
@@ -378,6 +499,8 @@ const Profile = () => {
                 text="Save Changes"
                 variant="primary"
                 onPress={updatePhoneNumber}
+                isLoading={isLoading}
+                disabled={isLoading}
               />
             </View>
           </View>
@@ -390,31 +513,60 @@ const Profile = () => {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalHeaderText, { color: theme.colors.primary }]}>Change Password</Text>
-              <TouchableOpacity onPress={() => setPasswordModalVisible(false)}>
+              <TouchableOpacity onPress={resetPasswordModal}>
                 <MaterialIcons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: theme.colors.secondary }]}>Current Password</Text>
-              <AppInput
-                placeholder="Enter current password"
-                value={oldPassword}
-                onChangeText={setOldPassword}
-                secureTextEntry
-              />
+              <View style={styles.passwordInputWrapper}>
+                <AppInput
+                  placeholder="Enter current password"
+                  value={oldPassword}
+                  onChangeText={setOldPassword}
+                  secureTextEntry={!showOldPassword}
+                  style={{ flex: 1 }}
+                />
+                <TouchableOpacity onPress={() => setShowOldPassword(prev => !prev)}
+                    style={{ marginLeft: 8 }} >
+                  <MaterialIcons
+                    name={showOldPassword ? "visibility-off" : "visibility"}
+                    size={24}
+                    color="#94A3B8"
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
-            
+
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: theme.colors.secondary }]}>New Password</Text>
-              <AppInput
-                placeholder="Enter new password"
-                value={newPassword}
-                onChangeText={setNewPassword}
-                secureTextEntry
-              />
+              <View style={styles.passwordInputWrapper}>
+                <AppInput
+                  placeholder="Enter new password"
+                  value={newPassword}
+                  onChangeText={(text) => {
+                    setNewPassword(text);
+                    if (validationError) validatePassword();
+                  }}
+                  secureTextEntry={!showNewPassword}
+                  style={{ flex: 1 }}
+                />
+                <TouchableOpacity onPress={() => setShowNewPassword(prev => !prev)}
+                    style={{ marginLeft: 8 }} >
+                  <MaterialIcons
+                    name={showNewPassword ? "visibility-off" : "visibility"}
+                    size={24}
+                    color="#94A3B8"
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
-            
+
+            {validationError ? (
+              <Text style={styles.errorText}>{validationError}</Text>
+            ) : null}
+
             <View style={styles.modalActions}>
               <AppButton
                 text="Update Password"
@@ -644,5 +796,19 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     marginTop: 12,
+  },
+  passwordInputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+  },
+  errorText: {
+    color: "#EF4444",
+    fontSize: 14,
+    marginTop: 4,
+    marginBottom: 4, 
   },
 });

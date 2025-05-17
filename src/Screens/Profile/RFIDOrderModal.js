@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Modal, View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { Modal, View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Animatable from "react-native-animatable";
 
@@ -72,12 +72,34 @@ const RFIDOrderModal = ({ visible, onClose, onSubmit, initialAddress }) => {
     }
   };
 
+  const validateForm = () => {
+    if (!formData.province) {
+      Alert.alert("Form Incomplete", "Please select a province.");
+      return false;
+    }
+    if (!formData.city) {
+      Alert.alert("Form Incomplete", "Please select a city.");
+      return false;
+    }
+    if (!formData.postalCode || formData.postalCode.length !== 5) {
+      Alert.alert("Form Incomplete", "Please enter a valid 5-digit postal code.");
+      return false;
+    }
+    if (!formData.address || formData.address.trim() === "") {
+      Alert.alert("Form Incomplete", "Please enter your complete address.");
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = () => {
-    setShowSuccess(true);
-    setTimeout(() => {
-      setShowSuccess(false);
-      onSubmit(formData);
-    }, 3000);
+    if (validateForm()) {
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        onSubmit(formData);
+      }, 3000);
+    }
   };
 
   const isFormValid = formData.province && 
@@ -174,8 +196,7 @@ const RFIDOrderModal = ({ visible, onClose, onSubmit, initialAddress }) => {
                     text="Complete Onboarding"
                     onPress={handleSubmit}
                     variant="primary"
-                    style={[styles.submitButton, !isFormValid && styles.buttonDisabled]}
-                    disabled={!isFormValid}
+                    style={styles.submitButton}
                   />
                 </Animatable.View>
               </Animatable.View>
@@ -286,9 +307,6 @@ const styles = StyleSheet.create({
     marginTop: 24,
     height: 56,
     borderRadius: 12,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
   },
   successNotice: {
     position: "absolute",

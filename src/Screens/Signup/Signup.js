@@ -61,8 +61,8 @@ const Signup = ({ navigation }) => {
   };
 
   const validatePhoneNumber = (phone) => {
-    // Basic phone validation (adjust based on your requirements)
-    const phoneRegex = /^\d{10,15}$/;
+    // Validates phone number starting with 03 and exactly 11 digits
+    const phoneRegex = /^03\d{9}$/;
     return phoneRegex.test(phone);
   };
 
@@ -106,7 +106,7 @@ const Signup = ({ navigation }) => {
         if (!value.trim()) {
           errorMessage = "Phone number is required";
         } else if (!validatePhoneNumber(value)) {
-          errorMessage = "Please enter a valid phone number";
+          errorMessage = "Please enter a valid phone number starting with 03 (11 digits total)";
         }
         break;
 
@@ -119,7 +119,24 @@ const Signup = ({ navigation }) => {
   };
 
   const handleInputChange = (field, value) => {
-    updateState({ [field]: value });
+    // For phone number, only allow digits and enforce 03 prefix
+    if (field === "phoneNumber") {
+      // Remove non-digit characters
+      const digitsOnly = value.replace(/\D/g, "");
+      
+      // Ensure it starts with "03" if user is typing
+      let formattedValue = digitsOnly;
+      if (digitsOnly.length > 0 && !digitsOnly.startsWith("03")) {
+        formattedValue = "03" + digitsOnly.substring(Math.min(2, digitsOnly.length));
+      }
+      
+      // Limit to 11 digits
+      formattedValue = formattedValue.substring(0, 11);
+      
+      updateState({ [field]: formattedValue });
+    } else {
+      updateState({ [field]: value });
+    }
     
     // Clear the specific error when user starts typing
     if (errors[field]) {
@@ -258,7 +275,7 @@ const Signup = ({ navigation }) => {
 
             {/* Phone Number Input */}
             <AppInput
-              placeholder="Enter your phone number"
+              placeholder="Enter phone number (03-)"
               value={state.phoneNumber}
               keyboardType="phone-pad"
               onChangeText={(value) => handleInputChange("phoneNumber", value)}

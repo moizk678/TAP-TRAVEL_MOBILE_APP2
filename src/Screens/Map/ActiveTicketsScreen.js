@@ -257,7 +257,7 @@ const ActiveTicketsScreen = () => {
               <Text style={styles.emptyStateMessage}>You don't have any active tickets at the moment.</Text>
               <AppButton
                 text="Book a New Trip"
-                onPress={() => navigation.navigate("BookingForm")}
+                onPress={() => navigation.navigate("Home")}
                 variant="primary"
                 style={styles.bookButton}
               />
