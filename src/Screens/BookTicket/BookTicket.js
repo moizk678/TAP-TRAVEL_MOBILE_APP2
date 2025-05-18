@@ -26,60 +26,167 @@ const BookTicket = ({ route }) => {
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [genderModalVisible, setGenderModalVisible] = useState(false);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
+  const [currentSeatForGender, setCurrentSeatForGender] = useState(null);
 
+  useEffect(() => {
+    const fetchBusAndTickets = async () => {
+      try {
+        // Fetch bus data - this includes seat information from the server
+        const response = await fetch(`${apiBaseUrl}/bus/${busId}`);
+        const data = await response.json();
+        
+        // Keep the original bus data fetching to get all bookings
+        // But also check for cancelled tickets to update availability
+        await checkCancelledTickets(data);
+        
+      } catch (error) {
+        console.error("Error fetching bus data:", error);
+        Toast.show({
+          type: "error",
+          text1: "Failed to load bus data",
+          text2: "Please try again later"
+        });
+      }
+    };
 
-
-useEffect(() => {
-  const fetchBusAndTickets = async () => {
-    try {
-      // Fetch bus data
-      const busResponse = await fetch(`${apiBaseUrl}/bus/${busId}`);
-      const busData = await busResponse.json();
-
-      // Get userId from token
-      const token = await AsyncStorage.getItem("token");
-      if (!token) throw new Error("No auth token");
-
-      const decoded = jwtDecode(token);
-      const userId = decoded?.sub;
-      if (!userId) throw new Error("No userId in token");
-
-      // Fetch tickets for user
-      const ticketsResponse = await fetch(`${apiBaseUrl}/ticket/user/information/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const ticketsJson = await ticketsResponse.json();
-
-      // ticketsJson has shape: { active: [...], past: [...] }
-      // Combine active and past tickets into one array
-      const allTickets = [...(ticketsJson.active || []), ...(ticketsJson.past || [])];
-
-      // Filter only tickets for this bus and with ticketStatus "booked"
-      const bookedTickets = allTickets.filter(
-        (ticket) => ticket.busId === busId && ticket.ticketStatus === "booked"
-      );
-
-      // Set of seatNumbers booked
-      const bookedSeatNumbers = new Set(bookedTickets.map(t => t.seatNumber));
-
-      // Update seats booked property
-      const updatedSeats = busData.seats.map(seat => ({
-        ...seat,
-        booked: bookedSeatNumbers.has(seat.seatNumber),
-      }));
-
-      setSelectedBus({ ...busData, seats: updatedSeats });
-    } catch (error) {
-      console.error("Error fetching bus or tickets data:", error);
+    // This function specifically checks for cancelled tickets and updates seat availability
+const checkCancelledTickets = async (busData) => {
+  try {
+    console.log("Starting checkCancelledTickets for bus:", busData._id);
+    
+    // Get authentication data - use "token" as that's what exists in AsyncStorage
+    const token = await AsyncStorage.getItem("token");
+    console.log("Token available:", !!token);
+    
+    // If no token is found, just use the original bus data
+    if (!token) {
+      console.log("No token found, using original bus data");
+      setSelectedBus(busData);
+      return;
     }
-  };
+    
+    // Extract user ID from the token (JWT) instead of looking for it separately
+    let userId = null;
+    try {
+      // Use jwtDecode which is already imported and used elsewhere in your component
+      const decoded = jwtDecode(token);
+      userId = decoded?.sub || decoded?.userId || decoded?.id || decoded?._id;
+      console.log("Extracted userId from token:", userId);
+    } catch (e) {
+      console.log("Error extracting userId from token:", e.message);
+    }
+    
+    if (!userId) {
+      console.log("No userId found, using original bus data");
+      setSelectedBus(busData);
+      return;
+    }
 
-  if (busId) {
-    fetchBusAndTickets();
+    // Use the endpoint that includes cancelled tickets
+    // Using the same endpoint as in Ticket.js for consistency (/ticket/user/information/:userId)
+    console.log(`Fetching tickets for userId: ${userId}`);
+    const ticketsResponse = await fetch(`${apiBaseUrl}/ticket/user/information/${userId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!ticketsResponse.ok) {
+      const errorText = await ticketsResponse.text();
+      console.error("API error:", ticketsResponse.status, errorText);
+      setSelectedBus(busData);
+      return;
+    }
+    
+    const ticketsData = await ticketsResponse.json();
+    console.log("Tickets response structure:", Object.keys(ticketsData));
+    
+    // Handle the nested structure that comes from the /ticket/user/information endpoint
+    // This endpoint returns {active: [...], past: [...]} structure
+    const allTickets = [
+      ...(ticketsData.active || []),
+      ...(ticketsData.past || [])
+    ];
+    
+    console.log(`Retrieved ${allTickets.length} tickets in total`);
+    
+    // Filter tickets for the current bus
+    const busTickets = allTickets.filter(ticket => {
+      const ticketBusId = ticket.busId || (ticket.bus && ticket.bus._id);
+      const match = ticketBusId === busData._id;
+      if (match) {
+        console.log(`Found ticket for bus: seat ${ticket.seatNumber}, status: ${ticket.ticketStatus || ticket.status}`);
+      }
+      return match;
+    });
+    
+    console.log(`Filtered ${busTickets.length} tickets for this bus`);
+    
+    // Create a set of cancelled seat numbers for this specific bus
+    const cancelledSeats = new Set();
+    if (busTickets.length > 0) {
+      busTickets.forEach(ticket => {
+        // Check for 'ticketStatus' first (as used in the controller response)
+        // then fall back to 'status' for backward compatibility
+        const ticketStatus = ((ticket.ticketStatus || ticket.status) || "").toLowerCase();
+        console.log(`Ticket for seat ${ticket.seatNumber}, status: ${ticketStatus}`);
+        
+        // Check if the ticket is cancelled
+        if (ticketStatus === "cancelled") {
+          console.log(`Found cancelled ticket for seat ${ticket.seatNumber}`);
+          cancelledSeats.add(ticket.seatNumber);
+        }
+      });
+    }
+    
+    console.log("Cancelled seats:", Array.from(cancelledSeats));
+    
+    // If there are no cancelled seats, just use the bus data as is
+    if (cancelledSeats.size === 0) {
+      console.log("No cancelled seats found");
+      setSelectedBus(busData);
+      return;
+    }
+    
+    // Make a deep copy of busData to avoid mutation issues
+    const updatedBusData = JSON.parse(JSON.stringify(busData));
+    
+    // Update the bus seats data to make cancelled seats available again
+    if (updatedBusData && updatedBusData.seats) {
+      let updatedCount = 0;
+      updatedBusData.seats = updatedBusData.seats.map(seat => {
+        // Convert seat number to string for consistent comparison if needed
+        const seatNum = typeof seat.seatNumber === 'number' ? seat.seatNumber.toString() : seat.seatNumber;
+        
+        // Check if the seat number is in our cancelled seats set
+        if (cancelledSeats.has(seatNum) || cancelledSeats.has(Number(seatNum))) {
+          updatedCount++;
+          console.log(`Making seat ${seatNum} available`);
+          return {
+            ...seat,
+            booked: false,
+            gender: null
+          };
+        }
+        return seat;
+      });
+      console.log(`Updated ${updatedCount} seats to available status`);
+    }
+    
+    console.log("Setting updated bus data with cancelled seats made available");
+    setSelectedBus(updatedBusData);
+  } catch (error) {
+    console.error("Error checking cancelled tickets:", error.message, error.stack);
+    // If there's an error checking cancelled tickets, still use the original bus data
+    setSelectedBus(busData);
   }
-}, [busId]);
+};
+
+    if (busId) {
+      fetchBusAndTickets();
+    }
+  }, [busId]);
 
 
   const toggleSeatSelection = (seat) => {
@@ -100,8 +207,6 @@ useEffect(() => {
       ]);
     }
   };
-
-  const [currentSeatForGender, setCurrentSeatForGender] = useState(null);
 
   const handleGenderAssignment = async () => {
     const token = await AsyncStorage.getItem("token");
@@ -259,6 +364,12 @@ useEffect(() => {
         <Text style={styles.title}>
           {selectedBus?.route?.startCity} → {selectedBus?.route?.endCity}
         </Text>
+        <TouchableOpacity
+          style={styles.viewDetailsButton}
+          onPress={() => setDetailsModalVisible(true)}
+        >
+          <Text style={styles.viewDetailsText}>View Details</Text>
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.subtitle}>Select Your Seat</Text>
@@ -480,6 +591,85 @@ useEffect(() => {
     </Animatable.View>
   </View>
 </Modal>
+
+{/* Bus Details Modal */}
+<Modal
+  animationType="slide"
+  transparent={true}
+  visible={detailsModalVisible}
+  onRequestClose={() => setDetailsModalVisible(false)}
+>
+  <View style={styles.modalBackground}>
+    <Animatable.View animation="slideInUp" style={styles.detailsModalContainer}>
+      <Text style={styles.modalTitle}>Bus Details</Text>
+      <ScrollView style={styles.detailsScrollView}>
+        <View style={styles.detailsSection}>
+          <Text style={styles.detailsSectionTitle}>Route Information</Text>
+          <View style={styles.detailsRow}>
+            <Text style={styles.detailsLabel}>From:</Text>
+            <Text style={styles.detailsValue}>{selectedBus?.route?.startCity}</Text>
+          </View>
+          <View style={styles.detailsRow}>
+            <Text style={styles.detailsLabel}>To:</Text>
+            <Text style={styles.detailsValue}>{selectedBus?.route?.endCity}</Text>
+          </View>
+          <View style={styles.detailsRow}>
+            <Text style={styles.detailsLabel}>Departure:</Text>
+            <Text style={styles.detailsValue}>
+              {formatTime(selectedBus?.departureTime)}
+            </Text>
+          </View>
+          <View style={styles.detailsRow}>
+            <Text style={styles.detailsLabel}>Arrival:</Text>
+            <Text style={styles.detailsValue}>
+              {formatTime(selectedBus?.arrivalTime)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.detailsSection}>
+          <Text style={styles.detailsSectionTitle}>Bus Information</Text>
+          <View style={styles.detailsRow}>
+            <Text style={styles.detailsLabel}>Bus Type:</Text>
+            <Text style={styles.detailsValue}>{selectedBus?.busDetails?.busType || "Standard"}</Text>
+          </View>
+          <View style={styles.detailsRow}>
+            <Text style={styles.detailsLabel}>Bus No:</Text>
+            <Text style={styles.detailsValue}>{selectedBus?.busDetails?.busNumber || "N/A"}</Text>
+          </View>
+          <View style={styles.detailsRow}>
+            <Text style={styles.detailsLabel}>Total Seats:</Text>
+            <Text style={styles.detailsValue}>{selectedBus?.seats?.length || 0}</Text>
+          </View>
+        </View>
+
+        <View style={styles.detailsSection}>
+          <Text style={styles.detailsSectionTitle}>Fare Details</Text>
+          <View style={styles.detailsRow}>
+            <Text style={styles.detailsLabel}>Base Fare:</Text>
+            <Text style={styles.detailsValue}>
+              PKR {selectedBus?.fare?.actualPrice || 0}</Text>
+          </View>
+          <View style={styles.detailsRow}>
+            <Text style={styles.detailsLabel}>Service Fee:</Text>
+            <Text style={styles.detailsValue}>PKR {selectedBus?.fare?.serviceFee || 0}</Text>
+          </View>
+          <View style={styles.detailsRow}>
+            <Text style={styles.detailsLabel}>Total Fare:</Text>
+            <Text style={styles.detailsValue}>
+              PKR {selectedBus?.fare?.actualPrice || 0}
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+      <AppButton
+        text="Close"
+        variant="secondary"
+        onPress={() => setDetailsModalVisible(false)}
+      />
+    </Animatable.View>
+  </View>
+</Modal>
     </Animatable.View>
   );
 };
@@ -487,7 +677,6 @@ useEffect(() => {
 export default BookTicket;
 
 const styles = StyleSheet.create({
-
     busContainer: {
     flexGrow: 1, // Ensures the ScrollView content expands
     paddingHorizontal: 50, // Adds horizontal padding to avoid overflow
@@ -716,6 +905,11 @@ selectedSeatChipText: {
   gender: {
     color: "#fff",
     fontSize: 12,
+  },
+
+  optionsContainer: {
+    width: '100%',
+    marginVertical: 10,
   },
 
   genderOption: {

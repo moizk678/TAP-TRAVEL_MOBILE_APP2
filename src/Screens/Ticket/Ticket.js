@@ -26,6 +26,7 @@ const { width } = Dimensions.get("window");
 const Ticket = () => {
   const { theme } = useTheme();
   const [tickets, setTickets] = useState(null);
+  const [cancelledTickets, setCancelledTickets] = useState([]);
   const [filteredTickets, setFilteredTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState("active");
@@ -37,7 +38,7 @@ const Ticket = () => {
   const [ticketToDelete, setTicketToDelete] = useState(null);
   const [ticketToDeleteDetails, setTicketToDeleteDetails] = useState(null);
 
-  const fetchTickets = async () => {
+  const fetchActiveAndPastTickets = async () => {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem("token");
@@ -46,14 +47,54 @@ const Ticket = () => {
       const userId = decoded?.sub;
       if (!userId) return console.warn("UserId not found in token!");
 
+      console.log(`Fetching active and past tickets for user: ${userId}`);
       const { data } = await apiClient(`/ticket/user/information/${userId}`);
+      console.log("Tickets fetched successfully:", data ? Object.keys(data) : "no data");
       setTickets(data);
-      filterTickets(data, selectedTab);
+      return userId;
     } catch (error) {
-      console.error("Error fetching tickets:", error);
+      console.error("Error fetching active and past tickets:", error);
+      console.log("Error details:", error.response ? {
+        status: error.response.status,
+        data: error.response.data,
+      } : "No response details available");
+      return null;
+    }
+  };
+
+  const fetchCancelledTickets = async (userId) => {
+    if (!userId) return;
+    
+    try {
+      console.log(`Fetching cancelled tickets for user: ${userId}`);
+      // Use the same endpoint but filter by cancelled status on the client side
+      const { data } = await apiClient(`/ticket/user/information/${userId}`);
+      
+      if (data) {
+        // Extract cancelled tickets from both active and past arrays
+        const activeCancelled = (data.active || []).filter(ticket => ticket.ticketStatus === "cancelled");
+        const pastCancelled = (data.past || []).filter(ticket => ticket.ticketStatus === "cancelled");
+        
+        // Combine all cancelled tickets
+        const allCancelled = [...activeCancelled, ...pastCancelled];
+        console.log(`Found ${allCancelled.length} cancelled tickets`);
+        setCancelledTickets(allCancelled);
+      }
+    } catch (error) {
+      console.error("Error fetching cancelled tickets:", error);
+      console.log("Error details:", error.response ? {
+        status: error.response.status,
+        data: error.response.data,
+      } : "No response details available");
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchTickets = async () => {
+    const userId = await fetchActiveAndPastTickets();
+    await fetchCancelledTickets(userId);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -61,36 +102,35 @@ const Ticket = () => {
   }, []);
 
   useEffect(() => {
-    filterTickets(tickets, selectedTab);
-  }, [selectedTab, tickets]);
+    filterTickets(selectedTab);
+  }, [selectedTab, tickets, cancelledTickets]);
 
-  const filterTickets = (ticketsList, tab) => {
-    if (!ticketsList) {
-      setFilteredTickets([]);
-      return;
-    }
+  const filterTickets = (tab) => {
+    if (tab === "active" || tab === "past") {
+      if (!tickets) {
+        setFilteredTickets([]);
+        return;
+      }
 
-    let filtered = [];
+      let filtered = [];
 
-    if (tab === "active") {
-      filtered = (ticketsList.active || []).filter(
-        (ticket) => ticket.ticketStatus !== "cancelled"
-      );
-    } else if (tab === "past") {
-      filtered = (ticketsList.past || []).filter(
-        (ticket) => ticket.ticketStatus !== "cancelled"
-      );
+      if (tab === "active") {
+        filtered = (tickets.active || []).filter(
+          (ticket) => ticket.ticketStatus !== "cancelled"
+        );
+      } else if (tab === "past") {
+        filtered = (tickets.past || []).filter(
+          (ticket) => ticket.ticketStatus !== "cancelled"
+        );
+      }
+
+      console.log(`Filtered ${tab} tickets:`, filtered.length);
+      setFilteredTickets(filtered);
     } else if (tab === "cancelled") {
-      const activeCancelled = (ticketsList.active || []).filter(
-        (ticket) => ticket.ticketStatus === "cancelled"
-      );
-      const pastCancelled = (ticketsList.past || []).filter(
-        (ticket) => ticket.ticketStatus === "cancelled"
-      );
-      filtered = [...activeCancelled, ...pastCancelled];
+      // Use the dedicated cancelled tickets state
+      setFilteredTickets(cancelledTickets);
+      console.log(`Filtered cancelled tickets:`, cancelledTickets.length);
     }
-
-    setFilteredTickets(filtered);
   };
 
   const initiateDeleteProcess = (ticket) => {
@@ -99,6 +139,7 @@ const Ticket = () => {
       return;
     }
     
+    console.log(`Initiating delete process for ticket: ${ticket._id}`);
     setTicketToDelete(ticket._id);
     setTicketToDeleteDetails(ticket);
     setConfirmModalVisible(true);
@@ -121,13 +162,21 @@ const Ticket = () => {
         return;
       }
 
-      await apiClient.put(
-        `/ticket/cancel/${ticketToDelete}`,
+      console.log(`Attempting to cancel ticket with ID: ${ticketToDelete}`);
+      
+      // Use the correct API endpoint: /ticket/cancel/:id
+      const endpoint = `/ticket/cancel/${ticketToDelete}`;
+      console.log(`Calling API endpoint: ${endpoint}`);
+      
+      const response = await apiClient.put(
+        endpoint,
         {},
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
+      
+      console.log('Cancel ticket response:', response.data);
 
       await fetchTickets();
       setDeleteLoading(false);
@@ -135,6 +184,11 @@ const Ticket = () => {
       
     } catch (error) {
       console.error("Error cancelling ticket:", error);
+      console.log("Error details:", error.response ? {
+        status: error.response.status,
+        data: error.response.data,
+        headers: error.response.headers
+      } : "No response details available");
       setDeleteLoading(false);
     }
   };
@@ -266,17 +320,15 @@ const Ticket = () => {
 
   // Get count badges for tabs
   const getTicketCount = (tab) => {
-    if (!tickets) return 0;
+    if (!tickets && tab !== 'cancelled') return 0;
     
     switch(tab) {
       case 'active':
-        return (tickets.active || []).filter(t => t.ticketStatus !== "cancelled").length;
+        return (tickets?.active || []).filter(t => t.ticketStatus !== "cancelled").length;
       case 'past':
-        return (tickets.past || []).filter(t => t.ticketStatus !== "cancelled").length;
+        return (tickets?.past || []).filter(t => t.ticketStatus !== "cancelled").length;
       case 'cancelled':
-        const activeCancelled = (tickets.active || []).filter(t => t.ticketStatus === "cancelled").length;
-        const pastCancelled = (tickets.past || []).filter(t => t.ticketStatus === "cancelled").length;
-        return activeCancelled + pastCancelled;
+        return cancelledTickets.length;
       default:
         return 0;
     }
@@ -371,8 +423,6 @@ const Ticket = () => {
                   >
                     {tab.charAt(0).toUpperCase() + tab.slice(1)}
                   </Text>
-                  
- 
                 </TouchableOpacity>
               ))}
             </View>

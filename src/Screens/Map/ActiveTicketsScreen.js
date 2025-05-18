@@ -29,29 +29,50 @@ const ActiveTicketsScreen = () => {
   const { theme } = useTheme();
   const [activeTickets, setActiveTickets] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [allTickets, setAllTickets] = useState({ active: [], past: [] });
 
   useEffect(() => {
-    fetchActiveTickets();
+    fetchUserTickets();
   }, []);
 
-  const fetchActiveTickets = async () => {
+  const fetchUserTickets = async () => {
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem("token");
+      
+      if (!token) {
+        console.log("No authentication token found");
+        setLoading(false);
+        return;
+      }
+      
       const decoded = jwtDecode(token);
-      const userId = decoded?.sub;
-      const { data } = await apiClient(
-        `/ticket/user/information/${userId}?checkUptoEndDate=true`
-      );
-
-      // Filter out cancelled tickets
+      const userId = decoded?.sub || decoded?.userId || decoded?.id || decoded?._id;
+      
+      if (!userId) {
+        console.log("No user ID could be extracted from token");
+        setLoading(false);
+        return;
+      }
+      
+      console.log(`Fetching tickets for userId: ${userId}`);
+      // Use the same endpoint as in checkCancelledTickets
+      const { data } = await apiClient.get(`/ticket/user/information/${userId}`);
+      
+      console.log("Tickets response structure:", Object.keys(data));
+      
+      // Store all tickets for potential future use
+      setAllTickets(data);
+      
+      // Filter active non-cancelled tickets
       const activeNonCancelled = (data?.active || []).filter(
-        (ticket) => ticket.ticketStatus !== "cancelled"
+        (ticket) => ticket.status !== "cancelled" && ticket.ticketStatus !== "cancelled"
       );
-
+      
+      console.log(`Found ${activeNonCancelled.length} active non-cancelled tickets`);
       setActiveTickets(activeNonCancelled);
     } catch (error) {
-      console.error("Failed to fetch tickets:", error);
+      console.error("Failed to fetch tickets:", error.message, error.stack);
     } finally {
       setLoading(false);
     }
@@ -65,7 +86,7 @@ const ActiveTicketsScreen = () => {
     let shouldShowNavigationButton = false;
     if (
       isToday &&
-      ticket?.ticketStatus === "scanned" &&
+      ticket?.status === "scanned" &&
       ticket?.busStatus === busStatuses.IN_TRANSIT
     ) {
       shouldShowNavigationButton = true;
@@ -208,7 +229,7 @@ const ActiveTicketsScreen = () => {
                         <Text style={styles.routeUnavailable}>Route information is unavailable</Text>
                       )}
                     </View>
-                    {renderTicketStatusBadge(ticket?.ticketStatus)}
+                    {renderTicketStatusBadge(ticket?.status || ticket?.ticketStatus)}
                   </View>
                   
                   <View style={styles.ticketInfoContainer}>
