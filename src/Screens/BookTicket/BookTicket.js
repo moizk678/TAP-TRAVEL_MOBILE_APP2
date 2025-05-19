@@ -372,12 +372,7 @@ if (!selectedBus) {
         <Text style={styles.title}>
           {selectedBus?.route?.startCity} → {selectedBus?.route?.endCity}
         </Text>
-        <TouchableOpacity
-          style={styles.viewDetailsButton}
-          onPress={() => setDetailsModalVisible(true)}
-        >
-          <Text style={styles.viewDetailsText}>View Details</Text>
-        </TouchableOpacity>
+
       </View>
 
       <Text style={styles.subtitle}>Select Your Seat</Text>

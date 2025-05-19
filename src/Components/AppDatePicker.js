@@ -144,7 +144,7 @@ const AppDatePicker = ({
 
 const styles = StyleSheet.create({
   wrapper: {
-    marginBottom: 16,
+    marginBottom: 0,
   },
   label: {
     fontSize: 14,
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,
-    paddingVertical: Platform.OS === "ios" ? 14 : 10,
+    paddingVertical: Platform.OS === "ios" ? 14 : 1,
     borderWidth: 1.2,
     shadowColor: "#000",
     shadowOpacity: 0.05,

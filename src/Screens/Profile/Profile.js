@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     paddingHorizontal: 20,
-    paddingVertical: 24,
+    paddingVertical: 10,
     alignItems: "center",
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
@@ -716,6 +716,7 @@ const styles = StyleSheet.create({
   rfidStatusContainer: {
     flexDirection: "row",
     alignItems: "center",
+    paddingVertical: 7,
     backgroundColor: "#F8FAFC",
     padding: 16,
     borderRadius: 12,

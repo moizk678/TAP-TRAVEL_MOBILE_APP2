@@ -287,25 +287,25 @@ const BookingForm = () => {
           <View style={styles.formCard}>
             {renderHeaderWithIcon("Trip Details", "map")}
             
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>From</Text>
-              <View style={styles.inputWrapper}>
-                <MaterialIcons name="place" size={20} color={theme.colors.primary} style={styles.inputIcon} />
-                <AppSelect
-                  selectedValue={formData.fromCity}
-                  items={cities.map((city) => ({ label: city, value: city }))}
-                  onValueChange={(itemValue) =>
-                    handleInputChange("fromCity", itemValue)
-                  }
-                  value={formData.fromCity}
-                  placeholder="Select departure city"
-                  style={[styles.select, getErrorStyle("fromCity")]}
-                />
-              </View>
-              {formErrors.fromCity ? (
-                <Text style={styles.errorText}>{formErrors.fromCity}</Text>
-              ) : null}
-            </View>
+<View style={styles.formGroup}>
+  <Text style={styles.formLabel}>From</Text>
+  <View style={styles.inputWrapper}>
+    <MaterialIcons name="place" size={20} color={theme.colors.primary} style={styles.inputIcon} />
+    <AppSelect
+      selectedValue={formData.fromCity}
+      items={cities.map((city) => ({ label: city, value: city }))}
+      onValueChange={(itemValue) =>
+        handleInputChange("fromCity", itemValue)
+      }
+      value={formData.fromCity}
+      placeholder="Select departure city"
+      style={[styles.select, getErrorStyle("fromCity")]}
+    />
+  </View>
+  {formErrors.fromCity ? (
+    <Text style={styles.errorText}>{formErrors.fromCity}</Text>
+  ) : null}
+</View>
             
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>To</Text>
@@ -346,16 +346,13 @@ const BookingForm = () => {
               ) : null}
             </View>
             
-            <AppButton
-              text="Find Buses"
-              onPress={handleSubmit}
-              variant={isFormComplete ? "primary" : "disabled"}
-              style={[
-                styles.searchButtonContainer,
-                !isFormComplete && styles.disabledButton
-              ]}
-              disabled={!isFormComplete}
-            />
+<AppButton
+  text="Find Buses"
+  onPress={handleSubmit}
+  variant="primary"
+  style={styles.searchButtonContainer}
+/>
+
             {!isFormComplete && (
               <Text style={styles.disabledButtonInfo}>
                 Please fill all fields to search for buses
@@ -533,7 +530,7 @@ const styles = StyleSheet.create({
   select: {
     flex: 1,
     paddingLeft: 8,
-    paddingVertical: 14,
+    paddingVertical: 0,
     fontSize: 16,
     color: "#334155",
     backgroundColor: "transparent",
@@ -541,7 +538,7 @@ const styles = StyleSheet.create({
   datePicker: {
     flex: 1,
     paddingLeft: 8,
-    paddingVertical: 14,
+    paddingVertical: 0,
     fontSize: 16,
     color: "#334155",
     backgroundColor: "transparent",
