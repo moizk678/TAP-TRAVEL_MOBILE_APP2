@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { View, ActivityIndicator } from "react-native";
 import { useStripe } from "@stripe/stripe-react-native";
 import axios from "axios";
@@ -8,6 +8,7 @@ import { useNavigation } from "@react-navigation/native";
 import apiClient from "../api/apiClient";
 import AppButton from "./Button";
 import LottieView from 'lottie-react-native';
+import ConfettiCannon from "react-native-confetti-cannon";
 
 const Payment = ({
   amount,
@@ -23,12 +24,35 @@ const Payment = ({
 
   const [loading, setLoading] = useState(false); // for init
   const [processing, setProcessing] = useState(false); // for post-payment
-
+  const [showConfetti, setShowConfetti] = useState(false);
   const [paymentId, setPaymentId] = useState(null);
+  
+  // Refs for confetti cannons
+  const confettiLeftRef = useRef(null);
+  const confettiRightRef = useRef(null);
 
   useEffect(() => {
     initializePaymentSheet();
   }, []);
+
+  useEffect(() => {
+    // Trigger confetti when showConfetti state changes to true
+    if (showConfetti) {
+      if (confettiLeftRef.current) {
+        confettiLeftRef.current.start();
+      }
+      if (confettiRightRef.current) {
+        confettiRightRef.current.start();
+      }
+      
+      // Reset after animation completes
+      const timer = setTimeout(() => {
+        setShowConfetti(false);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [showConfetti]);
 
   const initializePaymentSheet = async () => {
     setLoading(true);
@@ -113,14 +137,22 @@ const Payment = ({
 
       await axios.post(`${apiBaseUrl}/ticket/generate`, ticketBody);
 
+      // Show confetti on successful payment and ticket generation
+      setShowConfetti(true);
+      
+      // Call the onSuccess callback if provided
+      if (onSuccess) onSuccess();
+
       Toast.show({
         type: "success",
         text2: "Your ticket has been successfully generated.",
       });
 
-      if (onSuccess) onSuccess();
-
-      navigation.navigate("MainTabs", { screen: "Ticket" });
+      // Navigate to tickets screen after a short delay to allow confetti to be visible
+      setTimeout(() => {
+        navigation.navigate("MainTabs", { screen: "Ticket" });
+      }, 2000);
+      
     } catch (error) {
       console.error("Error generating tickets:", error);
       Toast.show({
@@ -133,23 +165,43 @@ const Payment = ({
   };
 
   return (
-  <View>
-    {processing ? (
-      <LottieView
-        source={require('../../assets/animations/loading.json')}
-        autoPlay
-        loop
-        style={{ width: 100, height: 100, alignSelf: 'center' }}
-      />
-    ) : (
-      <AppButton
-        text="Pay Now"
-        onPress={openPaymentSheet}
-        disabled={loading}
-      />
-    )}
-  </View>
-);
+    <View>
+      {processing ? (
+        <LottieView
+          source={require('../../assets/animations/loading.json')}
+          autoPlay
+          loop
+          style={{ width: 100, height: 100, alignSelf: 'center' }}
+        />
+      ) : (
+        <AppButton
+          text="Pay Now"
+          onPress={openPaymentSheet}
+          disabled={loading}
+        />
+      )}
+      
+      {/* Confetti animations */}
+      {showConfetti && (
+        <>
+          <ConfettiCannon
+            ref={confettiLeftRef}
+            count={100}
+            origin={{ x: 0, y: 0 }}
+            fadeOut
+            explosionSpeed={300}
+          />
+          <ConfettiCannon
+            ref={confettiRightRef}
+            count={100}
+            origin={{ x: 400, y: 0 }}
+            fadeOut
+            explosionSpeed={300}
+          />
+        </>
+      )}
+    </View>
+  );
 };
 
 export default Payment;

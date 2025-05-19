@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -8,16 +8,9 @@ import {
 import Payment from "../../Components/Payment";
 import { MaterialIcons, FontAwesome5, Ionicons } from "@expo/vector-icons";
 import * as Animatable from "react-native-animatable";
-import ConfettiCannon from "react-native-confetti-cannon";
 
 const PaymentScreen = ({ route }) => {
   const { amount, busId, userId, userName, email, adminId, selectedSeats } = route.params;
-  const [showConfetti, setShowConfetti] = useState(false);
-
-  const handlePaymentSuccess = () => {
-    setShowConfetti(true);
-    setTimeout(() => setShowConfetti(false), 5000); // Optional reset after 5s
-  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -57,17 +50,16 @@ const PaymentScreen = ({ route }) => {
             </View>
 
             <View style={styles.detailRow}>
-  <View style={styles.iconContainer}>
-    <Ionicons name="bus" size={20} color="#ffffff" />
-  </View>
-  <View style={styles.detailContent}>
-    <Text style={styles.label}>Seats Selected</Text>
-    <Text style={styles.detail}>
-      {selectedSeats?.length} {selectedSeats?.length === 1 ? 'Seat' : 'Seats'}
-    </Text>
-  </View>
-</View>
-
+              <View style={styles.iconContainer}>
+                <Ionicons name="bus" size={20} color="#ffffff" />
+              </View>
+              <View style={styles.detailContent}>
+                <Text style={styles.label}>Seats Selected</Text>
+                <Text style={styles.detail}>
+                  {selectedSeats?.length} {selectedSeats?.length === 1 ? 'Seat' : 'Seats'}
+                </Text>
+              </View>
+            </View>
           </View>
           
           <View style={styles.divider} />
@@ -100,19 +92,11 @@ const PaymentScreen = ({ route }) => {
           email={email}
           adminId={adminId}
           selectedSeats={selectedSeats}
-          onSuccess={handlePaymentSuccess}
         />
         <Text style={styles.secureText}>
           <Ionicons name="lock-closed" size={14} color="#666" /> Secure Payment
         </Text>
       </Animatable.View>
-
-      {showConfetti && (
-        <>
-          <ConfettiCannon count={100} origin={{ x: 0, y: 0 }} fadeOut explosionSpeed={300} />
-          <ConfettiCannon count={100} origin={{ x: 400, y: 0 }} fadeOut explosionSpeed={300} />
-        </>
-      )}
     </ScrollView>
   );
 };
