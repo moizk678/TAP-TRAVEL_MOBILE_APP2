@@ -1,6 +1,14 @@
 import React from "react";
 import { useTheme } from "../theme/theme";
-import { TextInput, View, Text, StyleSheet, Platform } from "react-native";
+import {
+  TextInput,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+} from "react-native";
+import Icon from "react-native-vector-icons/Feather"; // Make sure Feather is installed
 
 const AppInput = ({
   label,
@@ -12,6 +20,8 @@ const AppInput = ({
   variant = "primary",
   borderRadius = 12,
   error = "",
+  rightIcon,
+  onRightIconPress,
   style,
   ...props
 }) => {
@@ -32,7 +42,7 @@ const AppInput = ({
         ]}
       >
         <TextInput
-          style={styles.input}
+          style={[styles.input, rightIcon ? { flex: 1 } : null]}
           placeholder={placeholder}
           placeholderTextColor="#999"
           value={value}
@@ -41,6 +51,11 @@ const AppInput = ({
           keyboardType={keyboardType}
           {...props}
         />
+        {rightIcon && (
+          <TouchableOpacity onPress={onRightIconPress} style={styles.iconWrapper}>
+            <Icon name={rightIcon} size={20} color="#7f8c8d" />
+          </TouchableOpacity>
+        )}
       </View>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
@@ -59,6 +74,8 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     borderWidth: 1.2,
+    flexDirection: "row", // ✅ needed for icon alignment
+    alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === "ios" ? 14 : 10,
     shadowColor: "#000",
@@ -70,6 +87,9 @@ const styles = StyleSheet.create({
   input: {
     fontSize: 16,
     color: "#2c3e50",
+  },
+  iconWrapper: {
+    marginLeft: 10,
   },
   errorText: {
     marginTop: 4,

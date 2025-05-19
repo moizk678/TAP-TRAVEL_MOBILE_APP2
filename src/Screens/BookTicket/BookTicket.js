@@ -7,6 +7,7 @@ import {
   FlatList,
   Modal,
   ScrollView,
+  ActivityIndicator,
   Image,
 } from "react-native";
 import { apiBaseUrl } from "../../config/urls";
@@ -17,6 +18,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Toast from "react-native-toast-message";
 import * as Animatable from "react-native-animatable";
 import { Ionicons } from '@expo/vector-icons';
+import LottieView from 'lottie-react-native';
 
 
 const BookTicket = ({ route }) => {
@@ -348,13 +350,19 @@ const checkCancelledTickets = async (busData) => {
     });
   };
 
-  if (!selectedBus) {
-    return (
-      <View style={styles.container}>
-        <Text>Loading bus details...</Text>
-      </View>
-    );
-  }
+if (!selectedBus) {
+  return (
+    <View style={styles.loadingContainer}>
+      <LottieView
+        source={require('../../../assets/animations/bus-loading.json')}
+        autoPlay
+        loop
+        style={{ width: 200, height: 200 }}
+      />
+      <Text style={styles.loadingText}>Loading</Text>
+    </View>
+  );
+}
 
   const busLayout = organizeBusLayout();
 
@@ -693,6 +701,20 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 3,
   },
+
+  loadingContainer: {
+  flex: 1,
+  justifyContent: "center",
+  alignItems: "center",
+  backgroundColor: "#f5f5f5", // optional: improves aesthetics
+},
+
+loadingText: {
+  fontSize: 14,
+  color: "#292966",
+  fontWeight: "bold",
+},
+
 
     selectionHeader: {
     flexDirection: 'row',

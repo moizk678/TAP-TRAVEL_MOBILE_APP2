@@ -408,7 +408,7 @@ const Profile = () => {
             onPressOut={handlePressOut}
             activeOpacity={0.9}
           >
-            <MaterialIcons name="logout" size={20} color="#FFFFFF" />
+            <MaterialIcons name="logout" size={18} color="#FFFFFF" />
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         </Animated.View>
@@ -756,7 +756,7 @@ const styles = StyleSheet.create({
   logoutText: {
     color: "#FFFFFF",
     fontWeight: "600",
-    fontSize: 16,
+    fontSize: 13,
     marginLeft: 8,
     letterSpacing: 0.6,
   },

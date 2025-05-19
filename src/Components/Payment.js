@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View } from "react-native";
+import { View, ActivityIndicator } from "react-native";
 import { useStripe } from "@stripe/stripe-react-native";
 import axios from "axios";
 import Toast from "react-native-toast-message";
@@ -7,11 +7,23 @@ import { apiBaseUrl } from "../config/urls";
 import { useNavigation } from "@react-navigation/native";
 import apiClient from "../api/apiClient";
 import AppButton from "./Button";
+import LottieView from 'lottie-react-native';
 
-const Payment = ({ amount, adminId, userId, email, busId, selectedSeats, onSuccess }) => {
+const Payment = ({
+  amount,
+  adminId,
+  userId,
+  email,
+  busId,
+  selectedSeats,
+  onSuccess,
+}) => {
   const navigation = useNavigation();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
-  const [loading, setLoading] = useState(false);
+
+  const [loading, setLoading] = useState(false); // for init
+  const [processing, setProcessing] = useState(false); // for post-payment
+
   const [paymentId, setPaymentId] = useState(null);
 
   useEffect(() => {
@@ -47,8 +59,10 @@ const Payment = ({ amount, adminId, userId, email, busId, selectedSeats, onSucce
   };
 
   const openPaymentSheet = async () => {
-    if (loading) return;
+    if (loading || processing) return;
+
     const { error } = await presentPaymentSheet();
+
     if (error) {
       Toast.show({
         type: "error",
@@ -56,6 +70,7 @@ const Payment = ({ amount, adminId, userId, email, busId, selectedSeats, onSucce
         text2: error.message,
       });
     } else {
+      setProcessing(true); // ⬅ Show animation
       await apiClient.post(`${apiBaseUrl}/payment/update-status`, {
         paymentId,
         status: "succeeded",
@@ -71,6 +86,7 @@ const Payment = ({ amount, adminId, userId, email, busId, selectedSeats, onSucce
         text1: "No Seats Selected",
         text2: "Please select at least one seat.",
       });
+      setProcessing(false);
       return;
     }
 
@@ -84,6 +100,7 @@ const Payment = ({ amount, adminId, userId, email, busId, selectedSeats, onSucce
           gender: seat?.gender,
         })),
       };
+
       await apiClient.patch(`/bus/update-seat-status`, seatPayload);
 
       const ticketBody = {
@@ -93,6 +110,7 @@ const Payment = ({ amount, adminId, userId, email, busId, selectedSeats, onSucce
           seatNumber: seat.seatNumber,
         })),
       };
+
       await axios.post(`${apiBaseUrl}/ticket/generate`, ticketBody);
 
       Toast.show({
@@ -100,7 +118,6 @@ const Payment = ({ amount, adminId, userId, email, busId, selectedSeats, onSucce
         text2: "Your ticket has been successfully generated.",
       });
 
-      // 🎉 Trigger confetti from parent
       if (onSuccess) onSuccess();
 
       navigation.navigate("MainTabs", { screen: "Ticket" });
@@ -110,14 +127,29 @@ const Payment = ({ amount, adminId, userId, email, busId, selectedSeats, onSucce
         type: "error",
         text1: "Something went wrong while booking tickets.",
       });
+    } finally {
+      setProcessing(false);
     }
   };
 
   return (
-    <View>
-      <AppButton text="Pay Now" onPress={openPaymentSheet} disabled={loading} />
-    </View>
-  );
+  <View>
+    {processing ? (
+      <LottieView
+        source={require('../../assets/animations/loading.json')}
+        autoPlay
+        loop
+        style={{ width: 100, height: 100, alignSelf: 'center' }}
+      />
+    ) : (
+      <AppButton
+        text="Pay Now"
+        onPress={openPaymentSheet}
+        disabled={loading}
+      />
+    )}
+  </View>
+);
 };
 
 export default Payment;
