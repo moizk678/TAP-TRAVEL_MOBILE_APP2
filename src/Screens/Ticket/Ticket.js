@@ -21,6 +21,10 @@ import TicketCard from "./TicketCard";
 import * as Animatable from "react-native-animatable";
 import { useTheme } from "../../theme/theme";
 import { MaterialIcons } from "react-native-vector-icons";
+import LottieView from 'lottie-react-native';
+import TicketLoadingAnimation from '../../../assets/animations/TicketLoading.json';
+
+
 
 const { width } = Dimensions.get("window");
 
@@ -448,12 +452,17 @@ const Ticket = () => {
         <View style={styles.contentContainer}>
           <Animatable.View animation="fadeInUp" duration={700} delay={250} style={{ flex: 1 }}>
             {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.colors.primary} />
-                <Text style={[styles.loadingText, { color: theme.colors.secondary }]}>
-                  Loading your tickets...
-                </Text>
-              </View>
+<View style={styles.loadingContainer}>
+    <LottieView
+      source={TicketLoadingAnimation}
+      autoPlay
+      loop
+      style={{ width: 120, height: 120 }}
+    />
+    <Text style={[styles.loadingText, { color: theme.colors.secondary }]}>
+      Loading your tickets...
+    </Text>
+  </View>
             ) : deleteLoading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={theme.colors.primary} />

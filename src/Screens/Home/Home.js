@@ -21,6 +21,9 @@ import { MaterialIcons } from "react-native-vector-icons";
 import { useTheme } from "../../theme/theme";
 import GlobalRefreshWrapper from "../../Components/GlobalRefreshWrapper";
 import { AuthContext } from "../../context/AuthContext";
+import LottieView from "lottie-react-native";
+import BusLoadingAnimation from "../../../assets/animations/finding_buses.json";
+
 
 const BookingForm = () => {
   const navigation = useNavigation();
@@ -432,9 +435,14 @@ const BookingForm = () => {
 
             {loading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.colors.primary} />
-                <Text style={styles.loadingText}>Finding buses...</Text>
-              </View>
+    <LottieView
+      source={BusLoadingAnimation}
+      autoPlay
+      loop
+      style={{ width: 60, height: 60 }}
+    />
+    <Text style={styles.loadingText}>Finding buses...</Text>
+  </View>
             ) : busesToShow.length > 0 ? (
               busesToShow.map((bus, index) => (
                 <Animatable.View
@@ -661,15 +669,16 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 12,
   },
-  loadingContainer: {
-    alignItems: "center",
-    paddingVertical: 25,
-  },
-  loadingText: {
-    marginTop: 10,
-    color: "#64748B",
-    fontSize: 14,
-  },
+loadingContainer: {
+  alignItems: "center",
+  justifyContent: "center",
+  paddingVertical: 40,
+},
+loadingText: {
+  marginTop: 12,
+  fontSize: 16,
+  color: "#292966",
+},
   noResultsContainer: {
     alignItems: "center",
     paddingVertical: 25,

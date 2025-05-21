@@ -23,6 +23,8 @@ import apiClient from "../../api/apiClient";
 import { formatDate } from "../../utils/helperFunction";
 import { busStatuses } from "../../utils/bus-statuses";
 import { useTheme } from "../../theme/theme";
+import LottieView from 'lottie-react-native';
+import TicketLoadingAnimation from '../../../assets/animations/TicketLoading.json';
 
 const ActiveTicketsScreen = () => {
   const navigation = useNavigation();
@@ -204,10 +206,17 @@ const ActiveTicketsScreen = () => {
         </Animatable.View>
 
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={styles.loadingText}>Loading your tickets...</Text>
-          </View>
+<View style={styles.loadingContainer}>
+    <LottieView
+      source={TicketLoadingAnimation}
+      autoPlay
+      loop
+      style={{ width: 120, height: 120 }}
+    />
+    <Text style={[styles.loadingText, { color: theme.colors.secondary }]}>
+      Loading your tickets...
+    </Text>
+  </View>
         ) : processedTickets.length > 0 ? (
           <Animatable.View animation="fadeInUp" duration={800} delay={200}>
             <View style={styles.ticketsContainer}>
