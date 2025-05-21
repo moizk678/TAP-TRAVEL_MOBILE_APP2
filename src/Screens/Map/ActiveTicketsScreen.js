@@ -4,7 +4,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   StatusBar,
   SafeAreaView,
   TouchableOpacity,
@@ -18,6 +17,7 @@ import * as Animatable from "react-native-animatable";
 import { MaterialIcons } from "react-native-vector-icons";
 
 import AppButton from "../../Components/Button";
+import GlobalRefreshWrapper from "../../Components/GlobalRefreshWrapper";
 import { apiBaseUrl } from "../../config/urls";
 import apiClient from "../../api/apiClient";
 import { formatDate } from "../../utils/helperFunction";
@@ -76,6 +76,12 @@ const ActiveTicketsScreen = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Custom refresh function for the GlobalRefreshWrapper
+  const handleRefresh = async () => {
+    console.log("Refreshing tickets data...");
+    await fetchUserTickets();
   };
 
   const processedTickets = activeTickets.map((ticket) => {
@@ -178,7 +184,8 @@ const ActiveTicketsScreen = () => {
         <Text style={styles.headerTitle}>Your Active Tickets</Text>
       </View>
       
-      <ScrollView 
+      <GlobalRefreshWrapper
+        onRefresh={handleRefresh}
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
@@ -285,7 +292,7 @@ const ActiveTicketsScreen = () => {
             </View>
           </Animatable.View>
         )}
-      </ScrollView>
+      </GlobalRefreshWrapper>
     </SafeAreaView>
   );
 };

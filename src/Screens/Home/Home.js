@@ -1,15 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ActivityIndicator,
-  ScrollView,
   Alert,
   TouchableOpacity,
   StatusBar,
   SafeAreaView,
-  Animated,
 } from "react-native";
 import axios from "axios";
 import { useNavigation } from "@react-navigation/native";
@@ -21,14 +19,18 @@ import { apiBaseUrl } from "../../config/urls";
 import * as Animatable from "react-native-animatable";
 import { MaterialIcons } from "react-native-vector-icons";
 import { useTheme } from "../../theme/theme";
+import GlobalRefreshWrapper from "../../Components/GlobalRefreshWrapper";
+import { AuthContext } from "../../context/AuthContext";
 
 const BookingForm = () => {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const { refreshUserData } = useContext(AuthContext);
   const [hasSearched, setHasSearched] = useState(false);
   const [filteredBuses, setFilteredBuses] = useState([]);
   const [buses, setBuses] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [cities, setCities] = useState([]);
   const [formErrors, setFormErrors] = useState({
     fromCity: "",
@@ -58,6 +60,46 @@ const BookingForm = () => {
     setIsFormComplete(complete);
   }, [formData]);
 
+  // Function to clear the form
+  const clearForm = () => {
+    setFormData({
+      fromCity: "",
+      toCity: "",
+      date: "",
+    });
+    setFormErrors({
+      fromCity: "",
+      toCity: "",
+      date: "",
+    });
+  };
+
+  // Custom refresh handler for pull-to-refresh
+  const handleRefresh = async () => {
+    console.log("Refreshing buses and user data...");
+    setRefreshing(true);
+    try {
+      // Clear the form when refreshing
+      clearForm();
+      
+      // Reset search state
+      setHasSearched(false);
+      
+      // Refresh buses data
+      await fetchBuses();
+      
+      // Also refresh user data if needed
+      if (refreshUserData) {
+        await refreshUserData();
+      }
+    } catch (error) {
+      console.error("Error during refresh:", error);
+      Alert.alert("Refresh Failed", "Could not refresh data. Please try again.");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const fetchBuses = async () => {
     setLoading(true);
     try {
@@ -71,6 +113,10 @@ const BookingForm = () => {
       extractCities(filteredData);
     } catch (error) {
       console.error("Error fetching buses:", error);
+      Alert.alert(
+        "Data Loading Error",
+        "Could not load bus information. Pull down to refresh and try again."
+      );
     }
     setLoading(false);
   };
@@ -236,6 +282,7 @@ const BookingForm = () => {
 
   const handleShowAllBuses = () => {
     setHasSearched(false);
+    clearForm(); // Clear the form when showing all buses
   };
 
   const handleBookTicket = (busId) => {
@@ -265,7 +312,8 @@ const BookingForm = () => {
         <Text style={styles.headerTitle}>Find Your Journey</Text>
       </View>
       
-      <ScrollView 
+      <GlobalRefreshWrapper
+        onRefresh={handleRefresh}
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
@@ -287,25 +335,25 @@ const BookingForm = () => {
           <View style={styles.formCard}>
             {renderHeaderWithIcon("Trip Details", "map")}
             
-<View style={styles.formGroup}>
-  <Text style={styles.formLabel}>From</Text>
-  <View style={styles.inputWrapper}>
-    <MaterialIcons name="place" size={20} color={theme.colors.primary} style={styles.inputIcon} />
-    <AppSelect
-      selectedValue={formData.fromCity}
-      items={cities.map((city) => ({ label: city, value: city }))}
-      onValueChange={(itemValue) =>
-        handleInputChange("fromCity", itemValue)
-      }
-      value={formData.fromCity}
-      placeholder="Select departure city"
-      style={[styles.select, getErrorStyle("fromCity")]}
-    />
-  </View>
-  {formErrors.fromCity ? (
-    <Text style={styles.errorText}>{formErrors.fromCity}</Text>
-  ) : null}
-</View>
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>From</Text>
+              <View style={styles.inputWrapper}>
+                <MaterialIcons name="place" size={20} color={theme.colors.primary} style={styles.inputIcon} />
+                <AppSelect
+                  selectedValue={formData.fromCity}
+                  items={cities.map((city) => ({ label: city, value: city }))}
+                  onValueChange={(itemValue) =>
+                    handleInputChange("fromCity", itemValue)
+                  }
+                  value={formData.fromCity}
+                  placeholder="Select departure city"
+                  style={[styles.select, getErrorStyle("fromCity")]}
+                />
+              </View>
+              {formErrors.fromCity ? (
+                <Text style={styles.errorText}>{formErrors.fromCity}</Text>
+              ) : null}
+            </View>
             
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>To</Text>
@@ -346,12 +394,12 @@ const BookingForm = () => {
               ) : null}
             </View>
             
-<AppButton
-  text="Find Buses"
-  onPress={handleSubmit}
-  variant="primary"
-  style={styles.searchButtonContainer}
-/>
+            <AppButton
+              text="Find Buses"
+              onPress={handleSubmit}
+              variant="primary"
+              style={styles.searchButtonContainer}
+            />
 
             {!isFormComplete && (
               <Text style={styles.disabledButtonInfo}>
@@ -413,7 +461,15 @@ const BookingForm = () => {
             )}
           </View>
         </Animatable.View>
-      </ScrollView>
+        
+        {/* Pull to refresh hint */}
+        <View style={styles.refreshHintContainer}>
+          <MaterialIcons name="refresh" size={16} color="#94A3B8" />
+          <Text style={styles.refreshHintText}>
+            Pull down to refresh bus list and clear search
+          </Text>
+        </View>
+      </GlobalRefreshWrapper>
     </SafeAreaView>
   );
 };
@@ -624,5 +680,18 @@ const styles = StyleSheet.create({
     color: "#64748B",
     marginTop: 12,
     marginBottom: 16,
+  },
+  refreshHintContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  refreshHintText: {
+    marginLeft: 6,
+    fontSize: 12,
+    color: "#94A3B8",
+    fontStyle: "italic",
   },
 });

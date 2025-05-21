@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Modal,
   TouchableOpacity,
   SafeAreaView,
@@ -21,6 +20,7 @@ import AppButton from "../../Components/Button";
 import RFIDOrderModal from "./RFIDOrderModal";
 import { MaterialIcons } from "react-native-vector-icons";
 import { useTheme } from "../../theme/theme";
+import GlobalRefreshWrapper from "../../Components/GlobalRefreshWrapper";
 
 const ProfileSection = ({ icon, label, value, onPress }) => {
   const { theme } = useTheme();
@@ -95,7 +95,7 @@ const Profile = () => {
   // Animation state for buttons
   const [logoutScale] = useState(new Animated.Value(1));
 
-  const { logout } = useContext(AuthContext);
+  const { logout, refreshUserData } = useContext(AuthContext);
 
   useEffect(() => {
     fetchProfile();
@@ -122,6 +122,34 @@ const Profile = () => {
       Toast.show({ type: "error", text1: "Failed to load profile" });
     }
     setLoading(false);
+  };
+
+  // Custom refresh function for the profile screen
+  const handleRefresh = async () => {
+    try {
+      // First refresh user data from AuthContext (for global state)
+      if (refreshUserData) {
+        await refreshUserData();
+      }
+      
+      // Then refresh profile-specific data
+      await fetchProfile();
+      
+      Toast.show({ 
+        type: "success", 
+        text1: "Profile updated", 
+        text2: "Latest information loaded",
+        visibilityTime: 2000,
+        position: "top"
+      });
+    } catch (error) {
+      console.error("Profile refresh error:", error);
+      Toast.show({ 
+        type: "error", 
+        text1: "Refresh failed", 
+        text2: "Couldn't update profile information"
+      });
+    }
   };
 
   const updateName = async () => {
@@ -323,7 +351,8 @@ const Profile = () => {
         <Text style={[styles.headerTitle, { color: theme.colors.primary }]}>Profile</Text>
       </View>
       
-      <ScrollView 
+      <GlobalRefreshWrapper 
+        onRefresh={handleRefresh}
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
@@ -396,7 +425,7 @@ const Profile = () => {
             </View>
           ) : null}
         </View>
-      </ScrollView>
+      </GlobalRefreshWrapper>
 
       {/* Logout Button */}
       <View style={styles.logoutWrapper}>

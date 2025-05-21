@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Dimensions,
   SafeAreaView,
   Image,
+  RefreshControl,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { jwtDecode } from "jwt-decode";
@@ -31,6 +32,7 @@ const Ticket = () => {
   const [loading, setLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState("active");
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   
   // Modal states
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
@@ -40,7 +42,6 @@ const Ticket = () => {
 
   const fetchActiveAndPastTickets = async () => {
     try {
-      setLoading(true);
       const token = await AsyncStorage.getItem("token");
       if (!token) return console.warn("Token not found!");
       const decoded = jwtDecode(token);
@@ -86,16 +87,28 @@ const Ticket = () => {
         status: error.response.status,
         data: error.response.data,
       } : "No response details available");
-    } finally {
-      setLoading(false);
     }
   };
 
   const fetchTickets = async () => {
+    setLoading(true);
     const userId = await fetchActiveAndPastTickets();
     await fetchCancelledTickets(userId);
     setLoading(false);
   };
+
+  // Custom refresh function for the Ticket component
+  const handleRefresh = useCallback(async () => {
+    console.log("Refreshing tickets data...");
+    setRefreshing(true);
+    try {
+      await fetchTickets();
+    } catch (error) {
+      console.error("Error refreshing tickets:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchTickets();
@@ -372,6 +385,8 @@ const Ticket = () => {
     </Animatable.View>
   );
 
+  // We won't need this separate function anymore since we'll handle the content directly in the return
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: "#f8fafc" }]}>
       <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
@@ -429,24 +444,24 @@ const Ticket = () => {
           </View>
         </Animatable.View>
 
-        {/* Content Area */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={[styles.loadingText, { color: theme.colors.secondary }]}>
-              Loading your tickets...
-            </Text>
-          </View>
-        ) : deleteLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={[styles.loadingText, { color: theme.colors.secondary }]}>
-              Cancelling your booking...
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.contentContainer}>
-            <Animatable.View animation="fadeInUp" duration={700} delay={250} style={{ flex: 1 }}>
+        {/* Content Area with Pull-to-Refresh */}
+        <View style={styles.contentContainer}>
+          <Animatable.View animation="fadeInUp" duration={700} delay={250} style={{ flex: 1 }}>
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={[styles.loadingText, { color: theme.colors.secondary }]}>
+                  Loading your tickets...
+                </Text>
+              </View>
+            ) : deleteLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={[styles.loadingText, { color: theme.colors.secondary }]}>
+                  Cancelling your booking...
+                </Text>
+              </View>
+            ) : (
               <FlatList
                 data={filteredTickets}
                 keyExtractor={(item, index) => `${item._id}_${index}`}
@@ -467,10 +482,18 @@ const Ticket = () => {
                 contentContainerStyle={styles.listContainer}
                 ListEmptyComponent={renderEmptyState}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    colors={['#292966']}
+                    tintColor={'#292966'}
+                  />
+                }
               />
-            </Animatable.View>
-          </View>
-        )}
+            )}
+          </Animatable.View>
+        </View>
       </View>
 
       {/* Custom Modals */}
@@ -479,7 +502,6 @@ const Ticket = () => {
     </SafeAreaView>
   );
 };
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -802,6 +824,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
   },
+  refreshWrapperContent: {
+  flexGrow: 1,
+},
   dismissButtonText: {
     color: 'white',
     fontWeight: '600',
