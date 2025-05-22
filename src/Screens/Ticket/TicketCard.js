@@ -72,20 +72,21 @@ const TicketCard = ({ ticket, onDelete, isActiveTicket, canCancel, theme }) => {
             </TouchableOpacity>
           </View>
           
-          <View style={styles.infoModalContent}>
-            <Text style={styles.infoModalText}>
-              Tickets cannot be cancelled when there is less than 1 hour remaining until departure.
-            </Text>
-            
-            {!canCancel && (
-              <View style={styles.timeInfoContainer}>
-                <MaterialIcons name="schedule" size={16} color="#e74c3c" />
-                <Text style={styles.timeInfoText}>
-                  Only {getHoursUntilDeparture().toFixed(1)} hours remaining until departure
-                </Text>
-              </View>
-            )}
-          </View>
+<View style={styles.infoModalContent}>
+  <Text style={styles.infoModalText}>
+    Tickets cannot be cancelled when there is less than 1 hour remaining until departure.
+  </Text>
+  
+  {!canCancel && (
+    <View style={styles.timeInfoContainer}>
+      <MaterialIcons name="schedule" size={16} color="#e74c3c" />
+      <Text style={styles.timeInfoText}>
+        Only {(getHoursUntilDeparture() * 60).toFixed(0)} minutes remaining   until departure
+      </Text>
+    </View>
+  )}
+</View>
+
           
           <TouchableOpacity 
             style={styles.infoModalButton}
