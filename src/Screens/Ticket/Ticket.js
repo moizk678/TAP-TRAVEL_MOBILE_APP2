@@ -24,8 +24,6 @@ import { MaterialIcons } from "react-native-vector-icons";
 import LottieView from 'lottie-react-native';
 import TicketLoadingAnimation from '../../../assets/animations/TicketLoading.json';
 
-
-
 const { width } = Dimensions.get("window");
 
 const Ticket = () => {
@@ -150,9 +148,40 @@ const Ticket = () => {
     }
   };
 
+  // Helper function to check if ticket can be cancelled
+  const canCancelTicket = (ticket) => {
+    if (!ticket.date || !ticket.departureTime) return false;
+    
+    // Parse the ticket date and departure time
+    const ticketDate = new Date(ticket.date);
+    const [hours, minutes] = ticket.departureTime.split(':').map(Number);
+    
+    // Create departure datetime
+    const departureDateTime = new Date(ticketDate);
+    departureDateTime.setHours(hours, minutes, 0, 0);
+    
+    // Get current time
+    const now = new Date();
+    
+    // Calculate time difference in milliseconds
+    const timeDifference = departureDateTime.getTime() - now.getTime();
+    
+    // Convert to hours (1 hour = 3600000 milliseconds)
+    const hoursUntilDeparture = timeDifference / (1000 * 60 * 60);
+    
+    // Can cancel if more than 1 hour remaining
+    return hoursUntilDeparture > 1;
+  };
+
   const initiateDeleteProcess = (ticket) => {
     if (!ticket || !ticket._id) {
       console.warn("Invalid ticket provided for deletion");
+      return;
+    }
+    
+    // Check if ticket can be cancelled
+    if (!canCancelTicket(ticket)) {
+      console.log("Cannot cancel ticket - less than 1 hour remaining");
       return;
     }
     
@@ -389,8 +418,6 @@ const Ticket = () => {
     </Animatable.View>
   );
 
-  // We won't need this separate function anymore since we'll handle the content directly in the return
-
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: "#f8fafc" }]}>
       <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
@@ -452,17 +479,17 @@ const Ticket = () => {
         <View style={styles.contentContainer}>
           <Animatable.View animation="fadeInUp" duration={700} delay={250} style={{ flex: 1 }}>
             {loading ? (
-<View style={styles.loadingContainer}>
-    <LottieView
-      source={TicketLoadingAnimation}
-      autoPlay
-      loop
-      style={{ width: 120, height: 120 }}
-    />
-    <Text style={[styles.loadingText, { color: theme.colors.secondary }]}>
-      Loading your tickets...
-    </Text>
-  </View>
+              <View style={styles.loadingContainer}>
+                <LottieView
+                  source={TicketLoadingAnimation}
+                  autoPlay
+                  loop
+                  style={{ width: 120, height: 120 }}
+                />
+                <Text style={[styles.loadingText, { color: theme.colors.secondary }]}>
+                  Loading your tickets...
+                </Text>
+              </View>
             ) : deleteLoading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -484,6 +511,7 @@ const Ticket = () => {
                       ticket={item}
                       onDelete={() => initiateDeleteProcess(item)}
                       isActiveTicket={selectedTab === "active"}
+                      canCancel={canCancelTicket(item)}
                       theme={theme}
                     />
                   </Animatable.View>

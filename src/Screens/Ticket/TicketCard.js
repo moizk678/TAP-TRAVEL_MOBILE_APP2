@@ -1,28 +1,102 @@
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Modal } from "react-native";
 import {
   MaterialIcons,
   MaterialCommunityIcons,
   AntDesign,
   Feather,
 } from "@expo/vector-icons";
+import * as Animatable from "react-native-animatable";
 import { formatTime } from "../../utils/format-time";
 import { getCityShortForm } from "../../utils/get-city-short-form";
 import { getTimeDifference } from "../../utils/get-time-difference";
 import { formatDateToDayMonth } from "../../utils/format-date-to-day-month";
 import { extractSeatNumber } from "../../utils/extract-seat-number";
 
-const TicketCard = ({ ticket, onDelete, isActiveTicket }) => {
+const TicketCard = ({ ticket, onDelete, isActiveTicket, canCancel, theme }) => {
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  
   const genderText = ticket?.seatDetails?.gender === "M" ? "Male" : "Female";
   const genderColor =
     ticket?.seatDetails?.gender === "M" ? "#27ae60" : "#e84393"; // green / pink
 
-  // MODIFIED: Directly call onDelete without showing Alert.alert
-  const handleDeletePress = () => {
-    // Call the parent component's onDelete function directly
-    // This will trigger our custom modal instead of the default Alert
-    onDelete(ticket);
+  // Calculate hours until departure for display
+  const getHoursUntilDeparture = () => {
+    if (!ticket.date || !ticket.departureTime) return 0;
+    
+    const ticketDate = new Date(ticket.date);
+    const [hours, minutes] = ticket.departureTime.split(':').map(Number);
+    
+    const departureDateTime = new Date(ticketDate);
+    departureDateTime.setHours(hours, minutes, 0, 0);
+    
+    const now = new Date();
+    const timeDifference = departureDateTime.getTime() - now.getTime();
+    const hoursUntilDeparture = timeDifference / (1000 * 60 * 60);
+    
+    return Math.max(0, hoursUntilDeparture);
   };
+
+  const handleDeletePress = () => {
+    if (canCancel) {
+      onDelete(ticket);
+    }
+  };
+
+  const handleInfoPress = () => {
+    setShowInfoModal(true);
+  };
+
+  // Info Modal Component
+  const InfoModal = () => (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={showInfoModal}
+      onRequestClose={() => setShowInfoModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <Animatable.View 
+          animation="zoomIn" 
+          duration={300} 
+          style={styles.infoModalContainer}
+        >
+          <View style={styles.infoModalHeader}>
+            <MaterialIcons name="info" size={24} color="#292966" />
+            <Text style={styles.infoModalTitle}>Cancellation Policy</Text>
+            <TouchableOpacity 
+              onPress={() => setShowInfoModal(false)}
+              style={styles.closeButton}
+            >
+              <MaterialIcons name="close" size={20} color="#666" />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.infoModalContent}>
+            <Text style={styles.infoModalText}>
+              Tickets cannot be cancelled when there is less than 1 hour remaining until departure.
+            </Text>
+            
+            {!canCancel && (
+              <View style={styles.timeInfoContainer}>
+                <MaterialIcons name="schedule" size={16} color="#e74c3c" />
+                <Text style={styles.timeInfoText}>
+                  Only {getHoursUntilDeparture().toFixed(1)} hours remaining until departure
+                </Text>
+              </View>
+            )}
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.infoModalButton}
+            onPress={() => setShowInfoModal(false)}
+          >
+            <Text style={styles.infoModalButtonText}>Got it</Text>
+          </TouchableOpacity>
+        </Animatable.View>
+      </View>
+    </Modal>
+  );
 
   return (
     <View style={styles.container}>
@@ -89,21 +163,54 @@ const TicketCard = ({ ticket, onDelete, isActiveTicket }) => {
         </View>
       </View>
 
-      {/* Delete Button - Only shown for active tickets */}
-      {isActiveTicket && (
-        <TouchableOpacity 
-          style={styles.deleteButton} 
-          onPress={handleDeletePress}
-          activeOpacity={0.7}
-        >
-          <Feather name="x-circle" size={18} color="#fff" />
-          <Text style={styles.deleteText}>Cancel Booking</Text>
-        </TouchableOpacity>
-      )}
+      {/* Cancel Button - Only shown for active tickets */}
+{isActiveTicket && (
+  <TouchableOpacity 
+    style={[
+      styles.deleteButton, 
+      !canCancel && styles.disabledDeleteButton // grey background when disabled
+    ]} 
+    onPress={handleDeletePress}
+    activeOpacity={canCancel ? 0.7 : 1}
+    disabled={!canCancel}
+  >
+    <Feather 
+      name="x-circle" 
+      size={18} 
+      color={canCancel ? "#fff" : "#999999"} // grey icon when disabled
+    />
+    <Text style={[
+      styles.deleteText,
+      !canCancel && styles.disabledDeleteText // grey text when disabled
+    ]}>
+      Cancel Booking
+    </Text>
+
+    {/* Info Icon */}
+    <TouchableOpacity 
+      style={[
+        styles.infoIconContainer,
+        !canCancel && styles.prominentInfoIcon
+      ]}
+      onPress={handleInfoPress}
+      activeOpacity={0.7}
+    >
+      <MaterialIcons 
+        name="info-outline" 
+        size={canCancel ? 18 : 20} 
+        color={canCancel ? "rgba(255,255,255,0.8)" : "#666666"} // grey info icon when disabled
+      />
+    </TouchableOpacity>
+  </TouchableOpacity>
+)}
+
 
       {/* Decorative Cutouts */}
       <View style={styles.cutoutLeft} />
       <View style={styles.cutoutRight} />
+      
+      {/* Info Modal */}
+      <InfoModal />
     </View>
   );
 };
@@ -121,6 +228,79 @@ const styles = StyleSheet.create({
     overflow: "visible",
     position: "relative",
   },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  infoModalContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+    width: "100%",
+    maxWidth: 320,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+  },
+  infoModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  infoModalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+    marginLeft: 10,
+    flex: 1,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  infoModalContent: {
+    marginBottom: 20,
+  },
+  infoModalText: {
+    fontSize: 16,
+    color: "#666",
+    lineHeight: 24,
+    marginBottom: 15,
+  },
+  timeInfoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ffebee",
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: "#e74c3c",
+  },
+  timeInfoText: {
+    fontSize: 14,
+    color: "#c62828",
+    marginLeft: 8,
+    fontWeight: "500",
+  },
+  infoModalButton: {
+    backgroundColor: "#292966",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  infoModalButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+
   title: {
     fontSize: 20,
     fontWeight: "bold",
@@ -261,6 +441,15 @@ const styles = StyleSheet.create({
     marginTop: 15,
     gap: 6,
   },
+
+    disabledDeleteButton: {
+    backgroundColor: "#cccccc", // light grey background when disabled
+  },
+
+    disabledDeleteText: {
+    color: "#666666", // dark grey text when disabled
+  },
+  
   deleteText: {
     color: "#fff",
     fontWeight: "bold",
