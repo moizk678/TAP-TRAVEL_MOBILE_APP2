@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     width: "30%",
   },
   time: {
-    fontSize: 20,
+    fontSize: 16,
     color: "#fff",
     fontWeight: "bold",
   },
