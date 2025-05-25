@@ -114,7 +114,7 @@ const AppSelect = ({
         <Text 
           style={[
             styles.selectedText,
-            !value && { color: "#94A3B8" } // Placeholder color
+            !value && { color: "#999" } // Placeholder color
           ]}
           numberOfLines={1}
         >

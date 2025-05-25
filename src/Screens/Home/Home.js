@@ -270,7 +270,7 @@ const BookingForm = () => {
     // If there are errors, show them in an alert
     if (!isValid) {
       Alert.alert(
-        "Form Validation Error",
+        "Please fill all feilds in the form",
         errorMessages.join("\n"),
         [{ text: "OK" }]
       );
@@ -397,12 +397,14 @@ const BookingForm = () => {
               ) : null}
             </View>
             
-            <AppButton
-              text="Find Buses"
-              onPress={handleSubmit}
-              variant="primary"
-              style={styles.searchButtonContainer}
-            />
+<AppButton
+  text="Find Buses"
+  onPress={handleSubmit}
+  variant="primary"
+  style={styles.searchButtonContainer}
+  textStyle={styles.searchButtonText}
+/>
+
 
             {!isFormComplete && (
               <Text style={styles.disabledButtonInfo}>
@@ -626,9 +628,26 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     backgroundColor: "#CBD5E1",
   },
-  searchButtonContainer: {
-    marginTop: 4,
-  },
+searchButtonContainer: {
+  marginTop: 16,
+  width: 220,
+  alignSelf: 'center',
+  borderRadius: 20,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.3,
+  shadowRadius: 6,
+  elevation: 5, // Android shadow
+},
+
+searchButtonText: {
+  color: '#FFFFFF',
+  fontWeight: 'bold',
+  fontSize: 16,
+  letterSpacing: 0.5,
+},
+
+
   resultsContainer: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,

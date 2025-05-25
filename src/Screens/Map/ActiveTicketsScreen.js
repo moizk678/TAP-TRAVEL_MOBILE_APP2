@@ -150,7 +150,6 @@ const ActiveTicketsScreen = () => {
     let badgeStyle = styles.statusBadge;
     let textStyle = styles.statusText;
     let statusText = status || "Unknown";
-    let iconName = "help-outline";
 
     switch (status?.toLowerCase()) {
       case "active":
@@ -172,7 +171,6 @@ const ActiveTicketsScreen = () => {
 
     return (
       <View style={badgeStyle}>
-        <MaterialIcons name={iconName} size={12} color={textStyle.color} style={{marginRight: 4}} />
         <Text style={textStyle}>{statusText}</Text>
       </View>
     );
