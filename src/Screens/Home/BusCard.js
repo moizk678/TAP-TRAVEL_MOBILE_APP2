@@ -22,9 +22,9 @@ const RFIDWarningCard = ({ theme }) => (
       <View style={styles.warningContent}>
         <MaterialIcons name="info" size={20} color="#856404" />
         <View style={styles.warningTextContainer}>
-          <Text style={styles.warningTitle}>RFID Card Required</Text>
+          <Text style={styles.warningTitle}>RFID Card Delivery Pending</Text>
           <Text style={styles.warningMessage}>
-            Please wait for your RFID card to be delivered before booking tickets.
+            Dear customer, Your RFID card has not been delivered yet. If you book a ticket before receiving it, please present your virtual ticket to the driver.
           </Text>
         </View>
       </View>
@@ -41,29 +41,25 @@ const BusCard = ({ bus, index, onBook, showRFIDWarning = false }) => {
   const isBookingDisabled = rfidStatus === 'booked';
 
   const handleBookTicket = () => {
-    if (onBook && !isBookingDisabled) {
+    if (onBook) {
       onBook(bus._id);
     }
   };
 
   const handlePressIn = () => {
-    if (!isBookingDisabled) {
-      Animated.spring(scale, {
-        toValue: 0.96,
-        useNativeDriver: true,
-      }).start();
-    }
+    Animated.spring(scale, {
+      toValue: 0.96,
+      useNativeDriver: true,
+    }).start();
   };
 
   const handlePressOut = () => {
-    if (!isBookingDisabled) {
-      Animated.spring(scale, {
-        toValue: 1,
-        friction: 3,
-        tension: 40,
-        useNativeDriver: true,
-      }).start();
-    }
+    Animated.spring(scale, {
+      toValue: 1,
+      friction: 3,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
   };
 
   return (
@@ -80,7 +76,7 @@ const BusCard = ({ bus, index, onBook, showRFIDWarning = false }) => {
             backgroundColor: "#F6F7FF",
             shadowColor: theme.colors.primary,
             borderColor: theme.colors.tertiary,
-            opacity: isBookingDisabled ? 0.7 : 1
+            opacity: isBookingDisabled ? 1 : 1
           }
         ]}>
           {/* Bus Operator Badge */}
@@ -176,46 +172,33 @@ const BusCard = ({ bus, index, onBook, showRFIDWarning = false }) => {
           </View>
 
           {/* Book Button */}
-          <Animated.View style={{ transform: [{ scale }] }}>
-            <TouchableOpacity
-              style={[
-                styles.bookButton, 
-                { 
-                  backgroundColor: isBookingDisabled ? '#CCCCCC' : theme.colors.primary,
-                  height: 48,
-                  borderRadius: 30,
-                  ...Platform.select({
-                    android: {
-                      elevation: isBookingDisabled ? 1 : 4,
-                    },
-                    ios: {
-                      shadowColor: "#000",
-                      shadowOffset: { width: 0, height: isBookingDisabled ? 1 : 3 },
-                      shadowOpacity: isBookingDisabled ? 0.1 : 0.15,
-                      shadowRadius: isBookingDisabled ? 2 : 6,
-                    },
-                  }),
-                }
-              ]}
-              onPress={handleBookTicket}
-              onPressIn={handlePressIn}
-              onPressOut={handlePressOut}
-              activeOpacity={isBookingDisabled ? 1 : 0.9}
-              disabled={isBookingDisabled}
-            >
-              <MaterialIcons 
-                name={isBookingDisabled ? "block" : "confirmation-number"} 
-                size={18} 
-                color={isBookingDisabled ? "#999999" : "#FFFFFF"} 
-              />
-              <Text style={[
-                styles.bookButtonText,
-                { color: isBookingDisabled ? "#999999" : "#FFFFFF" }
-              ]}>
-                {isBookingDisabled ? "Booking Unavailable" : "Book Ticket"}
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
+                  <Animated.View style={{ transform: [{ scale }] }}>
+          <TouchableOpacity
+            style={[styles.bookButton, { 
+              backgroundColor: theme.colors.primary,
+              height: 48,
+              borderRadius: 30,
+              ...Platform.select({
+                android: {
+                  elevation: 4,
+                },
+                ios: {
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 6,
+                },
+              }),
+            }]}
+            onPress={handleBookTicket}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            activeOpacity={0.9}
+          >
+            <MaterialIcons name="confirmation-number" size={18} color="#FFFFFF" />
+            <Text style={styles.bookButtonText}>Book Ticket</Text>
+          </TouchableOpacity>
+        </Animated.View>
         </View>
       </Animatable.View>
     </View>

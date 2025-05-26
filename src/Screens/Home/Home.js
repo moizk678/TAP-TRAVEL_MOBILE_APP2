@@ -289,16 +289,6 @@ const BookingForm = () => {
   };
 
   const handleBookTicket = (busId) => {
-    // Check RFID status before allowing navigation
-    if (rfidStatus === 'booked') {
-      Alert.alert(
-        "RFID Card Required",
-        "Please wait for your RFID card to be delivered before booking tickets.",
-        [{ text: "OK" }]
-      );
-      return;
-    }
-    
     navigation.navigate("BookTicket", { busId });
   };
 
