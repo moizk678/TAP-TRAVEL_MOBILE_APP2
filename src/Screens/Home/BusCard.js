@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform } from "react-native";
 import { format12time, formatDate } from "../../utils/helperFunction";
 import { getTimeDifference } from "../../utils/get-time-difference";
@@ -6,161 +6,219 @@ import { MaterialIcons } from "react-native-vector-icons";
 import * as Animatable from "react-native-animatable";
 import { useTheme } from "../../theme/theme";
 
-const BusCard = ({ bus, index, onBook }) => {
+// RFID Status Context
+export const RFIDStatusContext = React.createContext({
+  rfidStatus: null,
+});
+
+// RFID Warning Card Component
+const RFIDWarningCard = ({ theme }) => (
+  <Animatable.View animation="fadeInDown" duration={600}>
+    <View style={[styles.warningCard, { 
+      backgroundColor: "#FFF3CD",
+      borderColor: "#FFEAA7",
+      shadowColor: theme.colors.primary
+    }]}>
+      <View style={styles.warningContent}>
+        <MaterialIcons name="info" size={20} color="#856404" />
+        <View style={styles.warningTextContainer}>
+          <Text style={styles.warningTitle}>RFID Card Required</Text>
+          <Text style={styles.warningMessage}>
+            Please wait for your RFID card to be delivered before booking tickets.
+          </Text>
+        </View>
+      </View>
+    </View>
+  </Animatable.View>
+);
+
+const BusCard = ({ bus, index, onBook, showRFIDWarning = false }) => {
   const { theme } = useTheme();
+  const { rfidStatus } = useContext(RFIDStatusContext);
   const [scale] = useState(new Animated.Value(1));
 
+  // Determine if booking should be disabled
+  const isBookingDisabled = rfidStatus === 'booked';
+
   const handleBookTicket = () => {
-    if (onBook) {
+    if (onBook && !isBookingDisabled) {
       onBook(bus._id);
     }
   };
 
   const handlePressIn = () => {
-    Animated.spring(scale, {
-      toValue: 0.96,
-      useNativeDriver: true,
-    }).start();
+    if (!isBookingDisabled) {
+      Animated.spring(scale, {
+        toValue: 0.96,
+        useNativeDriver: true,
+      }).start();
+    }
   };
 
   const handlePressOut = () => {
-    Animated.spring(scale, {
-      toValue: 1,
-      friction: 3,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    if (!isBookingDisabled) {
+      Animated.spring(scale, {
+        toValue: 1,
+        friction: 3,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+    }
   };
 
   return (
-    <Animatable.View animation="fadeIn" duration={600} delay={index * 100}>
-      <View style={[styles.card, { 
-        backgroundColor: "#F6F7FF",
-        shadowColor: theme.colors.primary,
-        borderColor: theme.colors.tertiary
-      }]}>
-        {/* Bus Operator Badge */}
-        <View style={[styles.badgeContainer, { backgroundColor: theme.colors.basic }]}>
-          <MaterialIcons name="directions-bus" size={16} color={theme.colors.primary} />
-          <Text 
-            style={[styles.badgeText, { color: theme.colors.primary }]} 
-            numberOfLines={1} 
-            ellipsizeMode="tail"
-          >
-            {bus?.adminName}
-          </Text>
-        </View>
+    <View>
+      {/* RFID Warning Card - only show for first bus card and when RFID status is 'booked' */}
+      {showRFIDWarning && isBookingDisabled && (
+        <RFIDWarningCard theme={theme} />
+      )}
 
-        {/* Route Information */}
-        <View style={styles.routeContainer}>
-          {/* Departure */}
-          <View style={styles.timeBlock}>
-            <Text style={styles.timeText}>{format12time(bus?.departureTime)}</Text>
+      <Animatable.View animation="fadeIn" duration={600} delay={index * 100}>
+        <View style={[
+          styles.card, 
+          { 
+            backgroundColor: "#F6F7FF",
+            shadowColor: theme.colors.primary,
+            borderColor: theme.colors.tertiary,
+            opacity: isBookingDisabled ? 0.7 : 1
+          }
+        ]}>
+          {/* Bus Operator Badge */}
+          <View style={[styles.badgeContainer, { backgroundColor: theme.colors.basic }]}>
+            <MaterialIcons name="directions-bus" size={16} color={theme.colors.primary} />
             <Text 
-              style={styles.cityText} 
-              numberOfLines={2} 
+              style={[styles.badgeText, { color: theme.colors.primary }]} 
+              numberOfLines={1} 
               ellipsizeMode="tail"
             >
-              {bus?.route?.startCity}
+              {bus?.adminName}
             </Text>
-            <Text style={styles.dateText}>{formatDate(bus?.date)}</Text>
           </View>
 
-          {/* Journey Visual */}
-          <View style={styles.journeyVisual}>
-            <View style={[styles.startDot, { backgroundColor: theme.colors.primary }]} />
-            <View style={[styles.journeyLine, { backgroundColor: theme.colors.tertiary }]} />
-            <View style={[styles.durationBadge, { backgroundColor: theme.colors.basic }]}>
-              <Text style={[styles.durationText, { color: theme.colors.primary }]}>
-                {getTimeDifference(bus?.departureTime, bus?.arrivalTime)}
+          {/* Route Information */}
+          <View style={styles.routeContainer}>
+            {/* Departure */}
+            <View style={styles.timeBlock}>
+              <Text style={styles.timeText}>{format12time(bus?.departureTime)}</Text>
+              <Text 
+                style={styles.cityText} 
+                numberOfLines={2} 
+                ellipsizeMode="tail"
+              >
+                {bus?.route?.startCity}
+              </Text>
+              <Text style={styles.dateText}>{formatDate(bus?.date)}</Text>
+            </View>
+
+            {/* Journey Visual */}
+            <View style={styles.journeyVisual}>
+              <View style={[styles.startDot, { backgroundColor: theme.colors.primary }]} />
+              <View style={[styles.journeyLine, { backgroundColor: theme.colors.tertiary }]} />
+              <View style={[styles.durationBadge, { backgroundColor: theme.colors.basic }]}>
+                <Text style={[styles.durationText, { color: theme.colors.primary }]}>
+                  {getTimeDifference(bus?.departureTime, bus?.arrivalTime)}
+                </Text>
+              </View>
+              <View style={[styles.journeyLine, { backgroundColor: theme.colors.tertiary }]} />
+              <View style={[styles.endDot, { backgroundColor: theme.colors.primary }]} />
+            </View>
+
+            {/* Arrival */}
+            <View style={styles.timeBlock}>
+              <Text style={styles.timeText}>{format12time(bus?.arrivalTime)}</Text>
+              <Text 
+                style={styles.cityText} 
+                numberOfLines={2} 
+                ellipsizeMode="tail"
+              >
+                {bus?.route?.endCity}
+              </Text>
+              <Text style={styles.dateText}>{formatDate(bus?.date)}</Text>
+            </View>
+          </View>
+
+          {/* Divider */}
+          <View style={[styles.divider, { backgroundColor: theme.colors.tertiary }]} />
+
+          {/* Bus Details */}
+          <View style={styles.detailsContainer}>
+            <View style={styles.detailItem}>
+              <MaterialIcons name="attach-money" size={14} color={theme.colors.primary} />
+              <Text style={styles.detailText} numberOfLines={1}>
+                <Text style={styles.detailLabel}>Price: </Text>
+                <Text style={styles.detailValue}>PKR {bus?.fare?.actualPrice}</Text>
               </Text>
             </View>
-            <View style={[styles.journeyLine, { backgroundColor: theme.colors.tertiary }]} />
-            <View style={[styles.endDot, { backgroundColor: theme.colors.primary }]} />
+
+            <View style={styles.detailItem}>
+              <MaterialIcons name="airline-seat-recline-normal" size={14} color={theme.colors.primary} />
+              <Text style={styles.detailText} numberOfLines={1}>
+                <Text style={styles.detailLabel}>Seats: </Text>
+                <Text style={styles.detailValue}>{bus?.busDetails?.busCapacity || "N/A"}</Text>
+              </Text>
+            </View>
+
+            <View style={styles.detailItem}>
+              <MaterialIcons name="place" size={14} color={theme.colors.primary} />
+              <Text style={styles.detailText} numberOfLines={1}>
+                <Text style={styles.detailLabel}>Stops: </Text>
+                <Text style={styles.detailValue}>{bus?.route?.stops?.length || 0}</Text>
+              </Text>
+            </View>
           </View>
 
-          {/* Arrival */}
-          <View style={styles.timeBlock}>
-            <Text style={styles.timeText}>{format12time(bus?.arrivalTime)}</Text>
-            <Text 
-              style={styles.cityText} 
-              numberOfLines={2} 
-              ellipsizeMode="tail"
+          {/* Bus Type Badge */}
+          <View style={[styles.busTypeBadge, { backgroundColor: theme.colors.basic }]}>
+            <MaterialIcons name="stars" size={14} color={theme.colors.primary} />
+            <Text style={[styles.busTypeText, { color: theme.colors.primary }]} numberOfLines={1}>
+              {bus?.busDetails?.standard?.toUpperCase() || "STANDARD"}
+            </Text>
+          </View>
+
+          {/* Book Button */}
+          <Animated.View style={{ transform: [{ scale }] }}>
+            <TouchableOpacity
+              style={[
+                styles.bookButton, 
+                { 
+                  backgroundColor: isBookingDisabled ? '#CCCCCC' : theme.colors.primary,
+                  height: 48,
+                  borderRadius: 30,
+                  ...Platform.select({
+                    android: {
+                      elevation: isBookingDisabled ? 1 : 4,
+                    },
+                    ios: {
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: isBookingDisabled ? 1 : 3 },
+                      shadowOpacity: isBookingDisabled ? 0.1 : 0.15,
+                      shadowRadius: isBookingDisabled ? 2 : 6,
+                    },
+                  }),
+                }
+              ]}
+              onPress={handleBookTicket}
+              onPressIn={handlePressIn}
+              onPressOut={handlePressOut}
+              activeOpacity={isBookingDisabled ? 1 : 0.9}
+              disabled={isBookingDisabled}
             >
-              {bus?.route?.endCity}
-            </Text>
-            <Text style={styles.dateText}>{formatDate(bus?.date)}</Text>
-          </View>
+              <MaterialIcons 
+                name={isBookingDisabled ? "block" : "confirmation-number"} 
+                size={18} 
+                color={isBookingDisabled ? "#999999" : "#FFFFFF"} 
+              />
+              <Text style={[
+                styles.bookButtonText,
+                { color: isBookingDisabled ? "#999999" : "#FFFFFF" }
+              ]}>
+                {isBookingDisabled ? "Booking Unavailable" : "Book Ticket"}
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
-
-        {/* Divider */}
-        <View style={[styles.divider, { backgroundColor: theme.colors.tertiary }]} />
-
-        {/* Bus Details */}
-        <View style={styles.detailsContainer}>
-          <View style={styles.detailItem}>
-            <MaterialIcons name="attach-money" size={14} color={theme.colors.primary} />
-            <Text style={styles.detailText} numberOfLines={1}>
-              <Text style={styles.detailLabel}>Price: </Text>
-              <Text style={styles.detailValue}>PKR {bus?.fare?.actualPrice}</Text>
-            </Text>
-          </View>
-
-          <View style={styles.detailItem}>
-            <MaterialIcons name="airline-seat-recline-normal" size={14} color={theme.colors.primary} />
-            <Text style={styles.detailText} numberOfLines={1}>
-              <Text style={styles.detailLabel}>Seats: </Text>
-              <Text style={styles.detailValue}>{bus?.busDetails?.busCapacity || "N/A"}</Text>
-            </Text>
-          </View>
-
-          <View style={styles.detailItem}>
-            <MaterialIcons name="place" size={14} color={theme.colors.primary} />
-            <Text style={styles.detailText} numberOfLines={1}>
-              <Text style={styles.detailLabel}>Stops: </Text>
-              <Text style={styles.detailValue}>{bus?.route?.stops?.length || 0}</Text>
-            </Text>
-          </View>
-        </View>
-
-        {/* Bus Type Badge */}
-        <View style={[styles.busTypeBadge, { backgroundColor: theme.colors.basic }]}>
-          <MaterialIcons name="stars" size={14} color={theme.colors.primary} />
-          <Text style={[styles.busTypeText, { color: theme.colors.primary }]} numberOfLines={1}>
-            {bus?.busDetails?.standard?.toUpperCase() || "STANDARD"}
-          </Text>
-        </View>
-
-        {/* Book Button - Using AppButton styling approach */}
-        <Animated.View style={{ transform: [{ scale }] }}>
-          <TouchableOpacity
-            style={[styles.bookButton, { 
-              backgroundColor: theme.colors.primary,
-              height: 48,
-              borderRadius: 30,
-              ...Platform.select({
-                android: {
-                  elevation: 4,
-                },
-                ios: {
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.15,
-                  shadowRadius: 6,
-                },
-              }),
-            }]}
-            onPress={handleBookTicket}
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
-            activeOpacity={0.9}
-          >
-            <MaterialIcons name="confirmation-number" size={18} color="#FFFFFF" />
-            <Text style={styles.bookButtonText}>Book Ticket</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </View>
-    </Animatable.View>
+      </Animatable.View>
+    </View>
   );
 };
 
@@ -177,6 +235,38 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     borderWidth: 1,
+  },
+
+    warningCard: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  warningContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  warningTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  warningTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#856404',
+    marginBottom: 4,
+  },
+  warningMessage: {
+    fontSize: 12,
+    color: '#856404',
+    lineHeight: 16,
   },
   badgeContainer: {
     flexDirection: "row",

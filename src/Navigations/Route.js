@@ -8,6 +8,7 @@ import { jwtDecode } from 'jwt-decode';
 import MainStack from './MainStack';
 import AuthStack from './AuthStack';
 import Rfid from '../Screens/Profile/Rfid';
+import { RFIDStatusContext } from '../Screens/Home/BusCard'; // Import the context
 
 // Create a special context just for the RFID flow
 export const RFIDNavigationContext = React.createContext({
@@ -19,6 +20,7 @@ const Stack = createStackNavigator();
 export default function Routes() {
   const { isAuthenticated, setIsAuthenticated } = React.useContext(AuthContext);
   const [needsRFID, setNeedsRFID] = useState(false);
+  const [rfidStatus, setRfidStatus] = useState(null); // Track RFID status
   const [loading, setLoading] = useState(true);
   
   // Function to mark RFID as complete and update navigation state
@@ -26,6 +28,9 @@ export default function Routes() {
     try {
       // Save RFID status to AsyncStorage
       await AsyncStorage.setItem('RFIDCardStatus', 'booked');
+      
+      // Update the RFID status in state
+      setRfidStatus('booked');
       
       // Update the state directly without trying to manipulate authentication
       setNeedsRFID(false);
@@ -50,6 +55,9 @@ export default function Routes() {
               
               console.log("RFID Card Status from API:", status);
               
+              // Update RFID status in state
+              setRfidStatus(status);
+              
               // Check if user needs RFID card based on API response
               if (status === 'pending' || !status) {
                 console.log("User needs RFID - showing RFID screen");
@@ -57,17 +65,25 @@ export default function Routes() {
                 await AsyncStorage.removeItem('RFIDCardStatus');
                 setNeedsRFID(true);
               } else if (status === 'booked') {
-                console.log("User has RFID - showing main app");
+                console.log("User has booked RFID - showing main app");
                 // Cache the confirmed status for future reference
                 await AsyncStorage.setItem('RFIDCardStatus', 'booked');
                 setNeedsRFID(false);
+              } else if (status === 'delivered') {
+                console.log("User has RFID - showing main app");
+                // Cache the confirmed status for future reference
+                await AsyncStorage.setItem('RFIDCardStatus', 'delivered');
+                setNeedsRFID(false);
               }
+
+              
             } catch (apiError) {
               console.error('API error fetching RFID status:', apiError);
               
               // Fallback to cache only if API request fails
               console.log('Falling back to cached RFID status');
               const cachedStatus = await AsyncStorage.getItem('RFIDCardStatus');
+              setRfidStatus(cachedStatus);
               setNeedsRFID(cachedStatus !== 'booked');
             }
           }
@@ -91,6 +107,13 @@ export default function Routes() {
     </RFIDNavigationContext.Provider>
   );
 
+  // Wrap MainStack with RFID Status Context
+  const MainStackWithRFIDContext = () => (
+    <RFIDStatusContext.Provider value={{ rfidStatus }}>
+      <MainStack />
+    </RFIDStatusContext.Provider>
+  );
+
   return (
     <NavigationContainer>
       {!isAuthenticated ? (
@@ -100,7 +123,7 @@ export default function Routes() {
           <Stack.Screen name="RfidScreen" component={RfidWithContext} />
         </Stack.Navigator>
       ) : (
-        <MainStack />
+        <MainStackWithRFIDContext />
       )}
     </NavigationContainer>
   );

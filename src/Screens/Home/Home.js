@@ -14,7 +14,7 @@ import { useNavigation } from "@react-navigation/native";
 import AppSelect from "../../Components/AppSelect";
 import AppDatePicker from "../../Components/AppDatePicker";
 import AppButton from "../../Components/Button";
-import BusCard from "./BusCard";
+import BusCard, { RFIDStatusContext } from "./BusCard"; // Import the context
 import { apiBaseUrl } from "../../config/urls";
 import * as Animatable from "react-native-animatable";
 import { MaterialIcons } from "react-native-vector-icons";
@@ -24,11 +24,11 @@ import { AuthContext } from "../../context/AuthContext";
 import LottieView from "lottie-react-native";
 import BusLoadingAnimation from "../../../assets/animations/finding_buses.json";
 
-
 const BookingForm = () => {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const { refreshUserData } = useContext(AuthContext);
+  const { rfidStatus } = useContext(RFIDStatusContext); // Get RFID status from context
   const [hasSearched, setHasSearched] = useState(false);
   const [filteredBuses, setFilteredBuses] = useState([]);
   const [buses, setBuses] = useState([]);
@@ -289,6 +289,16 @@ const BookingForm = () => {
   };
 
   const handleBookTicket = (busId) => {
+    // Check RFID status before allowing navigation
+    if (rfidStatus === 'booked') {
+      Alert.alert(
+        "RFID Card Required",
+        "Please wait for your RFID card to be delivered before booking tickets.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+    
     navigation.navigate("BookTicket", { busId });
   };
 
@@ -397,14 +407,13 @@ const BookingForm = () => {
               ) : null}
             </View>
             
-<AppButton
-  text="Find Buses"
-  onPress={handleSubmit}
-  variant="primary"
-  style={styles.searchButtonContainer}
-  textStyle={styles.searchButtonText}
-/>
-
+            <AppButton
+              text="Find Buses"
+              onPress={handleSubmit}
+              variant="primary"
+              style={styles.searchButtonContainer}
+              textStyle={styles.searchButtonText}
+            />
 
             {!isFormComplete && (
               <Text style={styles.disabledButtonInfo}>
@@ -437,14 +446,14 @@ const BookingForm = () => {
 
             {loading ? (
               <View style={styles.loadingContainer}>
-    <LottieView
-      source={BusLoadingAnimation}
-      autoPlay
-      loop
-      style={{ width: 60, height: 60 }}
-    />
-    <Text style={styles.loadingText}>Finding buses...</Text>
-  </View>
+                <LottieView
+                  source={BusLoadingAnimation}
+                  autoPlay
+                  loop
+                  style={{ width: 60, height: 60 }}
+                />
+                <Text style={styles.loadingText}>Finding buses...</Text>
+              </View>
             ) : busesToShow.length > 0 ? (
               busesToShow.map((bus, index) => (
                 <Animatable.View
@@ -452,7 +461,12 @@ const BookingForm = () => {
                   animation="fadeInUp"
                   delay={index * 100}
                 >
-                  <BusCard bus={bus} index={index + 1} onBook={handleBookTicket} />
+                  <BusCard 
+                    bus={bus} 
+                    index={index} 
+                    onBook={handleBookTicket}
+                    showRFIDWarning={index === 0} // Show RFID warning only on first card
+                  />
                 </Animatable.View>
               ))
             ) : (
